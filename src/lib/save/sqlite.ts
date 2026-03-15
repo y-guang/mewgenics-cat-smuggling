@@ -6,33 +6,9 @@ let sqlPromise: Promise<SqlJsStatic> | null = null
 
 async function initSql(): Promise<SqlJsStatic> {
   if (!sqlPromise) {
-    sqlPromise = (async () => {
-      const isNode = typeof window === 'undefined' && typeof process !== 'undefined' && !!process.versions?.node
-      if (isNode) {
-        const path = await import('node:path')
-        const wasmPath = path.resolve(process.cwd(), 'node_modules', 'sql.js', 'dist', 'sql-wasm.wasm')
-        return initSqlJs({ locateFile: () => wasmPath })
-      }
-
-      const response = await fetch(sqlWasmUrl)
-      if (!response.ok) {
-        throw new Error(`Failed to fetch sql-wasm binary from ${sqlWasmUrl}: ${response.status}`)
-      }
-
-      const wasmBinary = await response.arrayBuffer()
-      const header = new Uint8Array(wasmBinary, 0, Math.min(4, wasmBinary.byteLength))
-      const isWasmMagic = header.length === 4
-        && header[0] === 0x00
-        && header[1] === 0x61
-        && header[2] === 0x73
-        && header[3] === 0x6D
-
-      if (!isWasmMagic) {
-        throw new Error(`Invalid sql-wasm payload fetched from ${sqlWasmUrl}; got non-wasm content`)
-      }
-
-      return initSqlJs({ wasmBinary })
-    })()
+    sqlPromise = initSqlJs({
+      locateFile: () => sqlWasmUrl
+    })
   }
   return sqlPromise
 }
