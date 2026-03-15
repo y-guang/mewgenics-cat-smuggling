@@ -21,6 +21,7 @@ A front-end only tool to help user transfer their cat in the game Mewgenics by e
 ## UI Principles
 
 - Modern, grayscale, minimal.
+- Prefer well-known, reputable UI/component libraries over hand-crafted low-level HTML elements. Use `@tanstack/vue-table` for data tables, etc. Do not manually design complex UI elements that a library handles well.
 
 ## Resource
 
