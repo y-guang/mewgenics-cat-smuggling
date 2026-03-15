@@ -7,14 +7,14 @@ import {
   type ImageDataLike,
 } from '../src/utils/infoBlindWatermark'
 
-function createSyntheticImage(width: number, height: number): ImageDataLike {
+function createSyntheticImage(width: number, height: number, seed = 0): ImageDataLike {
   const data = new Uint8ClampedArray(width * height * 4)
   for (let row = 0; row < height; row += 1) {
     for (let column = 0; column < width; column += 1) {
       const offset = (row * width + column) * 4
-      data[offset] = (row * 5 + column * 3) % 256
-      data[offset + 1] = (row * 7 + column * 11) % 256
-      data[offset + 2] = (row * 13 + column * 17) % 256
+      data[offset] = (row * (5 + seed) + column * (3 + seed * 2)) % 256
+      data[offset + 1] = (row * (7 + seed * 3) + column * (11 + seed)) % 256
+      data[offset + 2] = (row * (13 + seed) + column * (17 + seed * 2)) % 256
       data[offset + 3] = 255
     }
   }
@@ -64,5 +64,18 @@ describe('info blind watermark', () => {
     const extracted = extractShortTextBlindWatermark(jpegRoundTrip, { password: 20260316 })
 
     expect(extracted).toBe('AbC123xyZ_-!')
+  })
+
+  test('extracts after 20 sequential JPEG quality 85 recompressions', () => {
+    for (let iteration = 1; iteration <= 20; iteration += 1) {
+      const source = createSyntheticImage(512, 512, iteration)
+      const payload = `Q85ROBUST${iteration.toString().padStart(2, '0')}`
+      const password = 20260316 + iteration
+      const embedded = embedShortTextBlindWatermark(source, payload, { password })
+      const jpegRoundTrip = roundTripJpeg(embedded, 85)
+      const extracted = extractShortTextBlindWatermark(jpegRoundTrip, { password })
+
+      expect(extracted, `iteration ${iteration}`).toBe(payload)
+    }
   })
 })
