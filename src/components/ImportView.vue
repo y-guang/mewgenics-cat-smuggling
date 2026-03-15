@@ -3,11 +3,11 @@ import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import vueFilePond from 'vue-filepond'
 import 'filepond/dist/filepond.min.css'
+import CatSummaryCard from './CatSummaryCard.vue'
 import { importCatIntoSave } from '../lib/save'
 import { SHORT_URL_API_BASE } from '../config/share'
 import { readShareImageWatermark } from '../utils/shareImage'
 import {
-  buildShortLookupUrl,
   extractPayloadTokenFromUrl,
   parseLongShareUrl,
   parsePayloadToken,
@@ -35,13 +35,35 @@ const carrierImageFile = ref<File | null>(null)
 const savePondFiles = ref<File[]>([])
 const carrierImageFiles = ref<File[]>([])
 const decodedCat = ref<DecodedImportCat | null>(null)
-const shareUrlInput = ref('')
 const resolvedLongUrl = ref<string | null>(null)
 const decodeError = ref<string | null>(null)
 const actionError = ref<string | null>(null)
 const isImporting = ref(false)
 const isDecoding = ref(false)
 const importedResult = ref<{ importedKey: number, importedId64: string } | null>(null)
+
+const summaryPairs = computed(() => {
+  if (!decodedCat.value) return [] as Array<{ label: string, value: string }>
+
+  return [
+    { label: 'Name', value: decodedCat.value.name ?? '(unnamed)' },
+    { label: 'Source Key', value: String(decodedCat.value.sourceKey) },
+    { label: 'ID64', value: decodedCat.value.id64 },
+    { label: 'Blob Bytes', value: String(decodedCat.value.wrappedBlob.byteLength) }
+  ]
+})
+
+const hasRoutePayload = computed(() => {
+  const payloadQuery = route.query.payload
+  const shareQuery = route.query.share
+  return (typeof payloadQuery === 'string' && payloadQuery.length > 0)
+    || (typeof shareQuery === 'string' && shareQuery.length > 0)
+})
+
+const currentStep = computed(() => {
+  if (!decodedCat.value) return 1
+  return 2
+})
 
 function normalizePayload(payload: DecodedCatSharePayload): DecodedImportCat {
   return {
@@ -92,7 +114,6 @@ async function decodeFromKey(key: string): Promise<DecodedImportCat> {
   }
 
   resolvedLongUrl.value = longUrl
-  shareUrlInput.value = buildShortLookupUrl(SHORT_URL_API_BASE, trimmed)
   return normalizePayload(parsed)
 }
 
@@ -138,10 +159,6 @@ async function onCarrierImageChange(items: FilePondLikeItem[]): Promise<void> {
   } catch (error) {
     decodeError.value = error instanceof Error ? error.message : String(error)
   }
-}
-
-async function decodeFromInputUrl(): Promise<void> {
-  await decodeAndSet(shareUrlInput.value)
 }
 
 async function decodeAndSetFromKey(shortKey: string): Promise<void> {
@@ -194,7 +211,6 @@ onMounted(async () => {
         return
       }
       resolvedLongUrl.value = window.location.href
-      shareUrlInput.value = window.location.href
       return
     }
   }
@@ -209,7 +225,6 @@ onMounted(async () => {
         normalized = shareQuery
       }
     }
-    shareUrlInput.value = normalized
     await decodeAndSet(normalized)
   }
 })
@@ -256,36 +271,22 @@ async function exportImportedSave(): Promise<void> {
   <div class="bg-neutral-800 border border-neutral-700 rounded-lg p-5 space-y-5">
     <header class="space-y-1">
       <h2 class="text-base font-medium text-neutral-100">Import a cat</h2>
-      <p class="text-sm text-neutral-400">Load from long URL payload, short URL, or share image watermark, then export the updated save.</p>
+      <p class="text-sm text-neutral-400">Use a share link with URL params or provide a share image, then export the updated save.</p>
     </header>
 
-    <section class="grid gap-4 lg:grid-cols-2">
-      <div class="space-y-2 lg:col-span-2">
-        <span class="text-sm text-neutral-300">KV API base URL (config)</span>
-        <p class="text-xs text-neutral-500 break-all">{{ SHORT_URL_API_BASE }}</p>
+    <section class="space-y-4">
+      <div class="space-y-1">
+        <div class="text-xs uppercase tracking-wide text-neutral-500">Step {{ currentStep }} of 2</div>
+        <h3 class="text-sm font-medium text-neutral-200">Step 1 · Open a share link or provide the share image</h3>
+        <p class="text-sm text-neutral-400">If you opened an import URL with params, the cat will load automatically. Otherwise, provide the share image below.</p>
       </div>
 
-      <div class="space-y-2 lg:col-span-2">
-        <span class="text-sm text-neutral-300">Share URL (long or short)</span>
-        <div class="flex gap-2">
-          <input
-            v-model="shareUrlInput"
-            type="url"
-            placeholder="Paste long URL with payload=... or short URL"
-            class="w-full rounded border border-neutral-600 bg-neutral-700 text-neutral-100 placeholder-neutral-500 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-neutral-400"
-          >
-          <button
-            class="rounded border border-neutral-600 bg-neutral-700 text-neutral-100 px-3 py-2 text-sm hover:bg-neutral-600 transition-colors disabled:opacity-50"
-            :disabled="isDecoding"
-            @click="decodeFromInputUrl"
-          >
-            {{ isDecoding ? 'Decoding...' : 'Decode URL' }}
-          </button>
-        </div>
+      <div v-if="hasRoutePayload && isDecoding" class="rounded-lg border border-neutral-700 bg-neutral-700/20 px-4 py-3 text-sm text-neutral-300">
+        Reading cat from URL...
       </div>
 
-      <div class="space-y-2">
-        <span class="text-sm text-neutral-300">Share image (watermarked)</span>
+      <div v-if="!decodedCat" class="space-y-2">
+        <span class="text-sm text-neutral-300">Share image</span>
         <FilePond
           name="carrierImage"
           :allow-multiple="false"
@@ -296,8 +297,20 @@ async function exportImportedSave(): Promise<void> {
           label-idle="<span class='filepond--label-action'>Drop share image here</span><br>or click to browse"
           @updatefiles="onCarrierImageChange"
         />
-        <p class="text-xs text-neutral-500">Image watermark should contain only the short key.</p>
       </div>
+    </section>
+
+    <p v-if="decodeError" class="text-sm text-red-400 bg-red-950 border border-red-800 rounded p-2">
+      {{ decodeError }}
+    </p>
+
+    <section v-if="decodedCat" class="space-y-4">
+      <div class="space-y-1">
+        <div class="text-xs uppercase tracking-wide text-neutral-500">Step 2 of 2</div>
+        <h3 class="text-sm font-medium text-neutral-200">Step 2 · Export the updated save</h3>
+      </div>
+
+      <CatSummaryCard :summary-pairs="summaryPairs" />
 
       <div class="space-y-2">
         <span class="text-sm text-neutral-300">Target save (.sav)</span>
@@ -311,35 +324,6 @@ async function exportImportedSave(): Promise<void> {
           label-idle="<span class='filepond--label-action'>Drop target save here</span><br>or click to browse"
           @updatefiles="onSaveFileChange"
         />
-      </div>
-    </section>
-
-    <p v-if="decodeError" class="text-sm text-red-400 bg-red-950 border border-red-800 rounded p-2">
-      {{ decodeError }}
-    </p>
-
-    <section v-if="decodedCat" class="rounded-lg border border-neutral-700 bg-neutral-700/20 px-4 py-3 space-y-3">
-      <h3 class="text-sm font-medium text-neutral-200">Decoded cat info</h3>
-      <p v-if="resolvedLongUrl" class="text-xs text-neutral-400 break-all">
-        Source long URL: {{ resolvedLongUrl }}
-      </p>
-      <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <div class="space-y-1">
-          <div class="text-xs uppercase tracking-wide text-neutral-500">Name</div>
-          <div class="text-sm text-neutral-100">{{ decodedCat.name ?? '(unnamed)' }}</div>
-        </div>
-        <div class="space-y-1">
-          <div class="text-xs uppercase tracking-wide text-neutral-500">Source key</div>
-          <div class="text-sm text-neutral-100">{{ decodedCat.sourceKey }}</div>
-        </div>
-        <div class="space-y-1">
-          <div class="text-xs uppercase tracking-wide text-neutral-500">ID64</div>
-          <div class="text-sm text-neutral-100 break-all">{{ decodedCat.id64 }}</div>
-        </div>
-        <div class="space-y-1">
-          <div class="text-xs uppercase tracking-wide text-neutral-500">Blob bytes</div>
-          <div class="text-sm text-neutral-100">{{ decodedCat.wrappedBlob.byteLength }}</div>
-        </div>
       </div>
     </section>
 
