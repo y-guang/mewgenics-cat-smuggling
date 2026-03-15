@@ -160,11 +160,11 @@ const columns = [
     header: 'Status',
     cell: ({ row }) => {
       const badges = flagBadges(row.original)
-      if (badges.length === 0) return h('span', { class: 'text-neutral-400' }, '—')
+      if (badges.length === 0) return h('span', { class: 'text-neutral-500' }, '—')
       return h('span', { class: 'inline-flex gap-1 flex-wrap' },
         badges.map((b) =>
           h('span', {
-            class: 'rounded px-1 py-0.5 text-xs font-medium bg-neutral-200 text-neutral-700'
+            class: 'rounded px-1 py-0.5 text-xs font-medium bg-neutral-700 text-neutral-300'
           }, b)
         )
       )
@@ -183,11 +183,11 @@ const columns = [
     cell: ({ row }) => {
       const count = row.original.issues.length
       const hasError = row.original.issues.some((i) => i.severity === 'error')
-      if (count === 0) return h('span', { class: 'text-neutral-400' }, '—')
+      if (count === 0) return h('span', { class: 'text-neutral-500' }, '—')
       return h('span', {
         class: hasError
-          ? 'rounded px-1 py-0.5 text-xs font-medium bg-red-100 text-red-700'
-          : 'rounded px-1 py-0.5 text-xs font-medium bg-yellow-100 text-yellow-700',
+          ? 'rounded px-1 py-0.5 text-xs font-medium bg-red-950 text-red-400'
+          : 'rounded px-1 py-0.5 text-xs font-medium bg-yellow-950 text-yellow-400',
         title: row.original.issues.map((i) => i.message).join('\n')
       }, `${count} ${hasError ? 'error' : 'warn'}${count > 1 ? 's' : ''}`)
     },
@@ -234,33 +234,33 @@ const selectedCount = computed(() => Object.keys(rowSelection.value).length)
 <template>
   <div class="space-y-6">
     <!-- File picker -->
-    <section class="bg-white border border-neutral-200 rounded-lg p-5 space-y-4">
-      <h2 class="text-base font-medium">Source save file</h2>
+    <section class="bg-neutral-800 border border-neutral-700 rounded-lg p-5 space-y-4">
+      <h2 class="text-base font-medium text-neutral-100">Source save file</h2>
       <label class="block space-y-1">
-        <span class="text-sm text-neutral-600">Select a <code>.sav</code> file</span>
+        <span class="text-sm text-neutral-400">Select a <code class="text-neutral-300">.sav</code> file</span>
         <input
           type="file"
           accept=".sav"
-          class="block w-full text-sm file:mr-3 file:rounded file:border-0 file:bg-neutral-900 file:text-white file:px-3 file:py-1.5 file:cursor-pointer"
+          class="block w-full text-sm text-neutral-300 file:mr-3 file:rounded file:border-0 file:bg-neutral-700 file:text-neutral-100 file:px-3 file:py-1.5 file:cursor-pointer hover:file:bg-neutral-600"
           @change="onFileChange"
         />
       </label>
       <button
-        class="rounded border border-neutral-700 bg-neutral-900 text-white px-4 py-2 text-sm disabled:opacity-40 hover:bg-neutral-700 transition-colors"
+        class="rounded border border-neutral-600 bg-neutral-700 text-neutral-100 px-4 py-2 text-sm disabled:opacity-40 hover:bg-neutral-600 transition-colors"
         :disabled="!selectedFile || isLoading"
         @click="loadSave"
       >
         {{ isLoading ? 'Loading…' : 'Load save' }}
       </button>
-      <p v-if="errorMessage" class="text-sm text-red-700 bg-red-50 border border-red-200 rounded p-2">
+      <p v-if="errorMessage" class="text-sm text-red-400 bg-red-950 border border-red-800 rounded p-2">
         {{ errorMessage }}
       </p>
     </section>
 
     <!-- Cat table -->
-    <section v-if="loaded" class="bg-white border border-neutral-200 rounded-lg p-5 space-y-4">
+    <section v-if="loaded" class="bg-neutral-800 border border-neutral-700 rounded-lg p-5 space-y-4">
       <div class="flex items-center justify-between gap-4 flex-wrap">
-        <h2 class="text-base font-medium">
+        <h2 class="text-base font-medium text-neutral-100">
           Cats
           <span class="text-neutral-500 font-normal text-sm ml-1">({{ cats.length }})</span>
         </h2>
@@ -269,26 +269,26 @@ const selectedCount = computed(() => Object.keys(rowSelection.value).length)
             v-model="globalFilter"
             type="search"
             placeholder="Search by name…"
-            class="rounded border border-neutral-300 px-3 py-1.5 text-sm w-52 focus:outline-none focus:ring-1 focus:ring-neutral-500"
+            class="rounded border border-neutral-600 bg-neutral-700 text-neutral-100 placeholder-neutral-500 px-3 py-1.5 text-sm w-52 focus:outline-none focus:ring-1 focus:ring-neutral-400"
           />
-          <span v-if="selectedCount > 0" class="text-sm text-neutral-600">{{ selectedCount }} selected</span>
+          <span v-if="selectedCount > 0" class="text-sm text-neutral-400">{{ selectedCount }} selected</span>
         </div>
       </div>
 
-      <div class="overflow-x-auto rounded border border-neutral-200">
+      <div class="overflow-x-auto rounded border border-neutral-700">
         <table class="w-full text-sm border-collapse">
-          <thead class="bg-neutral-50 border-b border-neutral-200">
+          <thead class="bg-neutral-700/60 border-b border-neutral-700">
             <tr>
               <th
                 v-for="header in table.getFlatHeaders()"
                 :key="header.id"
-                class="px-3 py-2 text-left font-medium text-neutral-700 whitespace-nowrap select-none"
-                :class="{ 'cursor-pointer hover:bg-neutral-100': header.column.getCanSort() }"
+                class="px-3 py-2 text-left font-medium text-neutral-300 whitespace-nowrap select-none"
+                :class="{ 'cursor-pointer hover:bg-neutral-700': header.column.getCanSort() }"
                 @click="header.column.getCanSort() ? header.column.toggleSorting() : undefined"
               >
                 <span class="inline-flex items-center gap-1">
                   <FlexRender :render="header.column.columnDef.header" :props="header.getContext()" />
-                  <span v-if="header.column.getCanSort()" class="text-neutral-400">
+                  <span v-if="header.column.getCanSort()" class="text-neutral-500">
                     <span v-if="header.column.getIsSorted() === 'asc'">↑</span>
                     <span v-else-if="header.column.getIsSorted() === 'desc'">↓</span>
                     <span v-else>↕</span>
@@ -301,19 +301,19 @@ const selectedCount = computed(() => Object.keys(rowSelection.value).length)
             <tr
               v-for="row in table.getRowModel().rows"
               :key="row.id"
-              class="border-b border-neutral-100 last:border-0 hover:bg-neutral-50"
-              :class="{ 'bg-neutral-50': row.getIsSelected() }"
+              class="border-b border-neutral-700/60 last:border-0 hover:bg-neutral-700/40"
+              :class="{ 'bg-neutral-700/50': row.getIsSelected() }"
             >
               <td
                 v-for="cell in row.getVisibleCells()"
                 :key="cell.id"
-                class="px-3 py-2 text-neutral-800"
+                class="px-3 py-2 text-neutral-200"
               >
                 <FlexRender :render="cell.column.columnDef.cell" :props="cell.getContext()" />
               </td>
             </tr>
             <tr v-if="table.getRowModel().rows.length === 0">
-              <td :colspan="columns.length" class="px-3 py-6 text-center text-neutral-400 text-sm">
+              <td :colspan="columns.length" class="px-3 py-6 text-center text-neutral-500 text-sm">
                 No cats found.
               </td>
             </tr>
@@ -323,7 +323,7 @@ const selectedCount = computed(() => Object.keys(rowSelection.value).length)
 
       <div class="flex justify-end">
         <button
-          class="rounded border border-neutral-700 bg-neutral-900 text-white px-4 py-2 text-sm disabled:opacity-40 hover:bg-neutral-700 transition-colors"
+          class="rounded border border-neutral-600 bg-neutral-700 text-neutral-100 px-4 py-2 text-sm disabled:opacity-40 hover:bg-neutral-600 transition-colors"
           :disabled="selectedCount === 0"
         >
           Export selected ({{ selectedCount }})

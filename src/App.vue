@@ -13,23 +13,23 @@ const tabs: { id: Tab; label: string }[] = [
 </script>
 
 <template>
-  <div class="min-h-screen bg-neutral-100 text-neutral-900 p-6 md:p-10">
+  <div class="min-h-screen bg-neutral-900 text-neutral-100 p-6 md:p-10">
     <div class="max-w-4xl mx-auto space-y-6">
       <header class="space-y-1">
         <h1 class="text-2xl md:text-3xl font-semibold tracking-tight">Mewgenics Cat Smuggler</h1>
-        <p class="text-sm text-neutral-500">Transfer cats between save files.</p>
+        <p class="text-sm text-neutral-400">Transfer cats between save files.</p>
       </header>
 
       <!-- Tab bar -->
-      <div class="flex gap-1 border-b border-neutral-200">
+      <div class="flex gap-1 border-b border-neutral-700">
         <button
           v-for="tab in tabs"
           :key="tab.id"
           class="px-4 py-2 text-sm font-medium transition-colors"
           :class="
             activeTab === tab.id
-              ? 'border-b-2 border-neutral-900 text-neutral-900 -mb-px'
-              : 'text-neutral-500 hover:text-neutral-800'
+              ? 'border-b-2 border-neutral-200 text-neutral-100 -mb-px'
+              : 'text-neutral-500 hover:text-neutral-300'
           "
           @click="activeTab = tab.id"
         >
