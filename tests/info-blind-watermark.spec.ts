@@ -1,3 +1,4 @@
+import * as jpeg from 'jpeg-js'
 import { describe, expect, test } from 'vitest'
 
 import {
@@ -21,6 +22,25 @@ function createSyntheticImage(width: number, height: number): ImageDataLike {
   return { width, height, data }
 }
 
+function roundTripJpeg(image: ImageDataLike, quality: number): ImageDataLike {
+  const encoded = jpeg.encode(
+    {
+      data: image.data,
+      width: image.width,
+      height: image.height,
+    },
+    quality,
+  )
+
+  const decoded = jpeg.decode(encoded.data, { useTArray: true })
+
+  return {
+    width: decoded.width,
+    height: decoded.height,
+    data: new Uint8ClampedArray(decoded.data),
+  }
+}
+
 describe('info blind watermark', () => {
   test('round-trips a 12 character payload', () => {
     const source = createSyntheticImage(256, 256)
@@ -35,5 +55,14 @@ describe('info blind watermark', () => {
 
     expect(() => embedShortTextBlindWatermark(source, '1234567890123')).toThrow(/at most 12/)
     expect(() => embedShortTextBlindWatermark(source, 'hello\nworld')).toThrow(/printable ASCII/)
+  })
+
+  test('extracts after JPEG quality recompression', () => {
+    const source = createSyntheticImage(512, 512)
+    const embedded = embedShortTextBlindWatermark(source, 'AbC123xyZ_-!', { password: 20260316 })
+    const jpegRoundTrip = roundTripJpeg(embedded, 90)
+    const extracted = extractShortTextBlindWatermark(jpegRoundTrip, { password: 20260316 })
+
+    expect(extracted).toBe('AbC123xyZ_-!')
   })
 })
