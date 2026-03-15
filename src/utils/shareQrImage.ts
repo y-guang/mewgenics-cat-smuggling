@@ -1,5 +1,5 @@
 import jsQR from 'jsqr'
-import QRCode from 'qrcode'
+import * as QRCode from 'qrcode'
 
 interface WriteShareImageOptions {
   qrText: string
@@ -7,6 +7,7 @@ interface WriteShareImageOptions {
   qrSize?: number
   padding?: number
   backgroundColor?: string
+  jpegQuality?: number
 }
 
 function readImage(fileOrBlob: File | Blob): Promise<HTMLImageElement> {
@@ -37,26 +38,32 @@ function readDataUrlImage(dataUrl: string): Promise<HTMLImageElement> {
 export async function writeShareImage(options: WriteShareImageOptions): Promise<Blob> {
   const qrSize = options.qrSize ?? 420
   const padding = options.padding ?? 24
-  const backgroundColor = options.backgroundColor ?? '#171717'
+  const backgroundColor = options.backgroundColor ?? '#ffffff'
+  const jpegQuality = options.jpegQuality ?? 0.95
+
+  const portraitImage = options.portraitFile ? await readImage(options.portraitFile) : null
+
+  // Content width rules:
+  // 1) QR must be at least qrSize.
+  // 2) If portrait is narrower than qrSize, upscale portrait to qrSize.
+  // 3) If portrait is wider than QR target, upscale QR to portrait width.
+  const targetContentWidth = portraitImage
+    ? Math.max(qrSize, portraitImage.width)
+    : qrSize
 
   const qrDataUrl = await QRCode.toDataURL(options.qrText, {
     errorCorrectionLevel: 'M',
     margin: 1,
-    width: qrSize
+    width: targetContentWidth
   })
 
   const qrImage = await readDataUrlImage(qrDataUrl)
-  const portraitImage = options.portraitFile ? await readImage(options.portraitFile) : null
 
-  const portraitTargetWidth = portraitImage
-    ? Math.min(960, portraitImage.width)
-    : 0
-
-  const portraitRatio = portraitImage ? portraitTargetWidth / portraitImage.width : 1
-  const portraitDrawWidth = portraitImage ? portraitTargetWidth : 0
+  const portraitRatio = portraitImage ? targetContentWidth / portraitImage.width : 1
+  const portraitDrawWidth = portraitImage ? targetContentWidth : 0
   const portraitDrawHeight = portraitImage ? Math.round(portraitImage.height * portraitRatio) : 0
 
-  const contentWidth = Math.max(qrImage.width, portraitDrawWidth)
+  const contentWidth = Math.max(qrImage.width, portraitDrawWidth, targetContentWidth)
   const canvasWidth = contentWidth + padding * 2
   const gap = portraitImage ? 20 : 0
   const canvasHeight = padding * 2 + portraitDrawHeight + gap + qrImage.height
@@ -88,7 +95,7 @@ export async function writeShareImage(options: WriteShareImageOptions): Promise<
         return
       }
       resolve(result)
-    }, 'image/png')
+    }, 'image/jpeg', jpegQuality)
   })
 
   return blob

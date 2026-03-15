@@ -30,7 +30,7 @@ const showCatInfo = ref(false)
 const isGeneratingShare = ref(false)
 const shareError = ref<string | null>(null)
 const shareImageUrl = ref<string | null>(null)
-const shareImageFileName = ref('cat-share.png')
+const shareImageFileName = ref('cat-share.jpg')
 
 function chooseAnotherCat(): void {
   showCatInfo.value = false
@@ -126,7 +126,8 @@ async function generateShareImage(): Promise<void> {
       qrText,
       portraitFile: portraitFile.value,
       qrSize: 420,
-      padding: 24
+      padding: 24,
+      jpegQuality: 0.95
     })
 
     cleanupShareUrl()
@@ -135,7 +136,7 @@ async function generateShareImage(): Promise<void> {
     const safeName = (selectedCat.value.name ?? `cat-${selectedCat.value.key}`)
       .replace(/[^A-Za-z0-9_-]+/g, '-')
       .replace(/^-+|-+$/g, '')
-    shareImageFileName.value = `${safeName || 'cat'}-share.png`
+    shareImageFileName.value = `${safeName || 'cat'}-share.jpg`
   } catch (error) {
     cleanupShareUrl()
     shareError.value = error instanceof Error ? error.message : String(error)
@@ -304,16 +305,12 @@ onBeforeUnmount(() => {
       <div class="flex items-center justify-between gap-3 flex-wrap">
         <div>
           <h3 class="text-sm font-medium text-neutral-200">Share image</h3>
-          <p class="text-sm text-neutral-400">QR code is always included. Portrait is optional.</p>
+          <p class="text-sm text-neutral-400">QR code is always included. Portrait is optional. The share image updates automatically when portrait changes.</p>
         </div>
-        <button
-          class="rounded border border-neutral-600 bg-neutral-700 text-neutral-100 px-3 py-1.5 text-sm hover:bg-neutral-600 transition-colors disabled:opacity-50"
-          :disabled="isGeneratingShare"
-          @click="generateShareImage"
-        >
-          {{ isGeneratingShare ? 'Generating...' : 'Regenerate QR image' }}
-        </button>
+        <span class="text-xs text-neutral-500">Output format: JPEG</span>
       </div>
+
+      <p v-if="isGeneratingShare" class="text-sm text-neutral-400">Generating share image...</p>
 
       <p v-if="shareError" class="text-sm text-red-400 bg-red-950 border border-red-800 rounded p-2">
         {{ shareError }}
