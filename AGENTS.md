@@ -26,4 +26,4 @@ A front-end only tool to help user transfer their cat in the game Mewgenics by e
 
 ## Resource
 
-The reversed-engineered `sav` file editor is available at [mewgenics-savegame-editor](https://github.com/michael-trinity/mewgenics-savegame-editor). For local access, see `./src/lib/mewgenics-savegame-editor`.
+The reversed-engineered `sav` file editor is available at [mewgenics-savegame-editor](https://github.com/michael-trinity/mewgenics-savegame-editor). For local access, see `./external-resource/mewgenics-savegame-editor`.
