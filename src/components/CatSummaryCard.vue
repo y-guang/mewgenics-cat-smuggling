@@ -28,8 +28,8 @@ function toggleExpanded(): void {
 </script>
 
 <template>
-  <div class="space-y-3">
-    <div class="rounded-lg border border-neutral-700 bg-neutral-700/20 px-4 py-3">
+  <div class="rounded-lg border border-neutral-700 bg-neutral-700/20 px-4 py-3 space-y-3">
+    <div>
       <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <div v-for="item in summaryPairs" :key="item.label" class="space-y-1">
           <div class="text-xs uppercase tracking-wide text-neutral-500">{{ item.label }}</div>

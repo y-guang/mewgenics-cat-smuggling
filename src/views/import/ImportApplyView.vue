@@ -4,7 +4,7 @@ import { useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import vueFilePond from 'vue-filepond'
 import 'filepond/dist/filepond.min.css'
-import CatSummaryCard from '../../components/CatSummaryCard.vue'
+import CatDetailCard from '../../components/CatDetailCard.vue'
 import { importCatIntoSave } from '../../lib/save'
 import { useImportFlowStore } from '../../stores/importFlow'
 
@@ -26,18 +26,26 @@ const actionError = ref<string | null>(null)
 const isImporting = ref(false)
 const importedResult = ref<{ importedKey: number, importedId64: string } | null>(null)
 
-const summaryPairs = computed(() => {
-  if (!decodedCat.value) return [] as Array<{ label: string, value: string }>
-
-  return [
-    { label: 'Name', value: decodedCat.value.name ?? '(unnamed)' },
-    { label: 'Source Key', value: String(decodedCat.value.sourceKey) },
-    { label: 'ID64', value: decodedCat.value.id64 },
-    { label: 'Blob Bytes', value: String(decodedCat.value.wrappedBlob.byteLength) }
-  ]
-})
-
 const canRunImport = computed(() => targetSaveFile.value !== null && decodedCat.value !== null && !isImporting.value)
+
+const importCatInfo = computed(() => {
+  if (!decodedCat.value) return null
+
+  return {
+    key: decodedCat.value.sourceKey,
+    id64: decodedCat.value.id64,
+    name: decodedCat.value.name,
+    ageDays: null,
+    sex: 'Unknown',
+    className: null,
+    level: null,
+    house: null,
+    stats: null,
+    levelBonuses: null,
+    flags: null,
+    issues: []
+  }
+})
 
 function onSaveFileChange(items: FilePondLikeItem[]): void {
   const file = items[0]?.file ?? null
@@ -109,7 +117,7 @@ function goBack(): void {
       <p class="text-sm text-neutral-400">Choose the save file that should receive this cat.</p>
     </header>
 
-    <CatSummaryCard :summary-pairs="summaryPairs" />
+    <CatDetailCard v-if="importCatInfo" :cat-info="importCatInfo" />
 
     <div class="space-y-2">
       <span class="text-sm text-neutral-300">Target save (.sav)</span>
