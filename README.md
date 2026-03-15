@@ -1,5 +1,15 @@
-# Vue 3 + TypeScript + Vite
+# Mewgenics Cat Smuggling
 
-This template should help get you started developing with Vue 3 and TypeScript in Vite. The template uses Vue 3 `<script setup>` SFCs, check out the [script setup docs](https://v3.vuejs.org/api/sfc-script-setup.html#sfc-script-setup) to learn more.
+A lightweight frontend tool for transferring cats in Mewgenics by editing the game's `.sav` file.
 
-Learn more about the recommended Project Setup and IDE Support in the [Vue Docs TypeScript Guide](https://vuejs.org/guide/typescript/overview.html#project-setup).
+## Attribution
+
+This project follows the save-file design and reverse-engineering approach from
+[mewgenics-savegame-editor](https://github.com/michael-trinity/mewgenics-savegame-editor)
+(also included locally in this workspace under `mewgenics-savegame-editor/`).
+
+This repository currently focuses on the UI and integration layer.
+
+## Status
+
+Early stage. More features may be added later.
