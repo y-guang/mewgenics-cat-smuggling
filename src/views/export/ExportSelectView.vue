@@ -1,0 +1,265 @@
+<script setup lang="ts">
+import { computed, h, ref } from 'vue'
+import { useRouter } from 'vue-router'
+import { storeToRefs } from 'pinia'
+import {
+  createColumnHelper,
+  getCoreRowModel,
+  getFilteredRowModel,
+  getSortedRowModel,
+  useVueTable,
+  FlexRender,
+  type SortingState,
+  type ColumnFiltersState
+} from '@tanstack/vue-table'
+import type { CatInfoRecord } from '../../lib/save'
+import { useExportFlowStore } from '../../stores/exportFlow'
+
+const router = useRouter()
+const store = useExportFlowStore()
+const { cats, sourceSaveFile, selectedCatKey } = storeToRefs(store)
+
+if (!sourceSaveFile.value) {
+  router.replace('/export/upload')
+}
+
+const globalFilter = ref('')
+const sorting = ref<SortingState>([{ id: 'key', desc: true }])
+const columnFilters = ref<ColumnFiltersState>([])
+
+function statCell(val: number | undefined | null): string {
+  return val != null ? String(val) : '—'
+}
+
+function flagBadges(row: CatInfoRecord): string[] {
+  const badges: string[] = []
+  if (row.flags?.dead) badges.push('Dead')
+  if (row.flags?.retired) badges.push('Retired')
+  if (row.flags?.donated) badges.push('Donated')
+  return badges
+}
+
+function chooseCat(cat: CatInfoRecord): void {
+  store.selectCat(cat.key)
+  router.push('/export/details')
+}
+
+function changeSave(): void {
+  store.resetAll()
+  router.push('/export/upload')
+}
+
+const colHelper = createColumnHelper<CatInfoRecord>()
+
+const columns = [
+  colHelper.display({
+    id: 'select',
+    header: () => '',
+    cell: ({ row }) =>
+      h('input', {
+        type: 'radio',
+        name: 'selected-cat',
+        class: 'accent-neutral-800',
+        checked: selectedCatKey.value === row.original.key,
+        onClick: (event: Event) => event.stopPropagation(),
+        onChange: () => chooseCat(row.original)
+      }),
+    enableSorting: false
+  }),
+  colHelper.accessor('name', {
+    header: 'Name',
+    cell: (info) => info.getValue() ?? '(unnamed)',
+    enableSorting: true
+  }),
+  colHelper.accessor('key', {
+    header: 'DB Key',
+    enableSorting: true
+  }),
+  colHelper.accessor('sex', {
+    header: 'Sex',
+    enableSorting: true
+  }),
+  colHelper.accessor('className', {
+    header: 'Class',
+    cell: (info) => info.getValue() ?? '—',
+    enableSorting: true
+  }),
+  colHelper.accessor('level', {
+    header: 'Lvl',
+    cell: (info) => info.getValue() ?? '—',
+    enableSorting: true
+  }),
+  colHelper.accessor((row) => row.stats?.str, {
+    id: 'str',
+    header: 'STR',
+    cell: (info) => statCell(info.getValue()),
+    enableSorting: true
+  }),
+  colHelper.accessor((row) => row.stats?.dex, {
+    id: 'dex',
+    header: 'DEX',
+    cell: (info) => statCell(info.getValue()),
+    enableSorting: true
+  }),
+  colHelper.accessor((row) => row.stats?.con, {
+    id: 'con',
+    header: 'CON',
+    cell: (info) => statCell(info.getValue()),
+    enableSorting: true
+  }),
+  colHelper.accessor((row) => row.stats?.int, {
+    id: 'int',
+    header: 'INT',
+    cell: (info) => statCell(info.getValue()),
+    enableSorting: true
+  }),
+  colHelper.accessor((row) => row.stats?.spd, {
+    id: 'spd',
+    header: 'SPD',
+    cell: (info) => statCell(info.getValue()),
+    enableSorting: true
+  }),
+  colHelper.accessor((row) => row.stats?.cha, {
+    id: 'cha',
+    header: 'CHA',
+    cell: (info) => statCell(info.getValue()),
+    enableSorting: true
+  }),
+  colHelper.accessor((row) => row.stats?.luck, {
+    id: 'luck',
+    header: 'LCK',
+    cell: (info) => statCell(info.getValue()),
+    enableSorting: true
+  }),
+  colHelper.accessor('ageDays', {
+    header: 'Age (days)',
+    cell: (info) => info.getValue() ?? '—',
+    enableSorting: true
+  }),
+  colHelper.display({
+    id: 'flags',
+    header: 'Status',
+    cell: ({ row }) => {
+      const badges = flagBadges(row.original)
+      if (badges.length === 0) return h('span', { class: 'text-neutral-500' }, '—')
+      return h('span', { class: 'inline-flex gap-1 flex-wrap' },
+        badges.map((b) =>
+          h('span', {
+            class: 'rounded px-1 py-0.5 text-xs font-medium bg-neutral-700 text-neutral-300'
+          }, b)
+        )
+      )
+    },
+    enableSorting: false
+  }),
+  colHelper.accessor((row) => row.house !== null, {
+    id: 'housed',
+    header: 'Housed',
+    cell: (info) => (info.getValue() ? 'Yes' : '—'),
+    enableSorting: true
+  }),
+  colHelper.accessor('id64', {
+    header: 'ID64',
+    cell: (info) => info.getValue() ?? '—',
+    enableSorting: false
+  })
+]
+
+const table = useVueTable({
+  get data() { return cats.value },
+  columns,
+  state: {
+    get sorting() { return sorting.value },
+    get globalFilter() { return globalFilter.value },
+    get columnFilters() { return columnFilters.value }
+  },
+  onSortingChange: (updater) => {
+    sorting.value = typeof updater === 'function' ? updater(sorting.value) : updater
+  },
+  onGlobalFilterChange: (updater) => {
+    globalFilter.value = typeof updater === 'function' ? updater(globalFilter.value) : updater
+  },
+  getCoreRowModel: getCoreRowModel(),
+  getSortedRowModel: getSortedRowModel(),
+  getFilteredRowModel: getFilteredRowModel(),
+  getRowId: (row) => String(row.key)
+})
+
+const loadedCount = computed(() => cats.value.length)
+</script>
+
+<template>
+  <section class="bg-neutral-800 border border-neutral-700 rounded-lg p-5 space-y-4">
+    <div class="flex items-center justify-between gap-4 flex-wrap">
+      <div class="space-y-1">
+        <h2 class="text-base font-medium text-neutral-100">
+          Choose Cat
+          <span class="text-neutral-500 font-normal text-sm ml-1">({{ loadedCount }})</span>
+        </h2>
+        <p class="text-xs text-neutral-500">Loaded from {{ sourceSaveFile?.name }}. Selecting one cat opens export details.</p>
+      </div>
+      <div class="flex items-center gap-3">
+        <input
+          v-model="globalFilter"
+          type="search"
+          placeholder="Search by name…"
+          class="rounded border border-neutral-600 bg-neutral-700 text-neutral-100 placeholder-neutral-500 px-3 py-1.5 text-sm w-52 focus:outline-none focus:ring-1 focus:ring-neutral-400"
+        />
+        <button
+          class="rounded border border-neutral-600 bg-neutral-700 text-neutral-100 px-3 py-1.5 text-sm hover:bg-neutral-600 transition-colors"
+          @click="changeSave"
+        >
+          Change save
+        </button>
+      </div>
+    </div>
+
+    <div class="overflow-x-auto rounded border border-neutral-700">
+      <table class="w-full text-sm border-collapse">
+        <thead class="bg-neutral-700/60 border-b border-neutral-700">
+          <tr>
+            <th
+              v-for="header in table.getFlatHeaders()"
+              :key="header.id"
+              class="px-3 py-2 text-left font-medium text-neutral-300 whitespace-nowrap select-none"
+              :class="{ 'cursor-pointer hover:bg-neutral-700': header.column.getCanSort() }"
+              @click="header.column.getCanSort() ? header.column.toggleSorting() : undefined"
+            >
+              <span class="inline-flex items-center gap-1">
+                <FlexRender :render="header.column.columnDef.header" :props="header.getContext()" />
+                <span v-if="header.column.getCanSort()" class="text-neutral-500">
+                  <span v-if="header.column.getIsSorted() === 'asc'">↑</span>
+                  <span v-else-if="header.column.getIsSorted() === 'desc'">↓</span>
+                  <span v-else>↕</span>
+                </span>
+              </span>
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr
+            v-for="row in table.getRowModel().rows"
+            :key="row.id"
+            class="border-b border-neutral-700/60 last:border-0 hover:bg-neutral-700/40 cursor-pointer"
+            @click="chooseCat(row.original)"
+          >
+            <td
+              v-for="cell in row.getVisibleCells()"
+              :key="cell.id"
+              class="px-3 py-2 text-neutral-200"
+            >
+              <FlexRender :render="cell.column.columnDef.cell" :props="cell.getContext()" />
+            </td>
+          </tr>
+          <tr v-if="table.getRowModel().rows.length === 0">
+            <td :colspan="columns.length" class="px-3 py-6 text-center text-neutral-500 text-sm">
+              No cats found.
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p class="text-xs text-neutral-500">Default sort is DB Key descending.</p>
+  </section>
+</template>
