@@ -5,6 +5,7 @@ import { storeToRefs } from 'pinia'
 import vueFilePond from 'vue-filepond'
 import 'filepond/dist/filepond.min.css'
 import { toast } from 'vue-sonner'
+import shareCoverPlaceholderUrl from '../../assets/share-cover-placeholder.jpg'
 import { extractCatByKey } from '../../lib/save'
 import { useExportFlowStore } from '../../stores/exportFlow'
 import { SHORT_URL_API_BASE } from '../../config/share'
@@ -48,6 +49,7 @@ const shareImageFileName = ref('cat-share.jpg')
 const extractedPayload = ref<CatSharePayload | null>(null)
 const refreshRunId = ref(0)
 const isLongUrlExpanded = ref(false)
+let defaultCoverFilePromise: Promise<File> | null = null
 
 function handlePortraitUpdate(items: FilePondLikeItem[]): void {
   const file = items[0]?.file ?? null
@@ -104,36 +106,26 @@ const summaryPairs = computed(() => [
   { label: 'Age', value: `${selectedCat.value?.ageDays ?? '—'} days` }
 ])
 
-const defaultInfoRows = computed(() => {
-  if (!selectedCat.value) return [] as Array<{ label: string, value: string }>
-
-  const stats = selectedCat.value.stats
-    ? `STR ${selectedCat.value.stats.str} DEX ${selectedCat.value.stats.dex} CON ${selectedCat.value.stats.con} INT ${selectedCat.value.stats.int} SPD ${selectedCat.value.stats.spd} CHA ${selectedCat.value.stats.cha} LCK ${selectedCat.value.stats.luck}`
-    : '—'
-
-  const statusList: string[] = []
-  if (selectedCat.value.flags?.dead) statusList.push('Dead')
-  if (selectedCat.value.flags?.retired) statusList.push('Retired')
-  if (selectedCat.value.flags?.donated) statusList.push('Donated')
-
-  return [
-    { label: 'Name', value: selectedCat.value.name ?? '(unnamed)' },
-    { label: 'DB Key', value: String(selectedCat.value.key) },
-    { label: 'ID64', value: selectedCat.value.id64 ?? '—' },
-    { label: 'Age', value: `${selectedCat.value.ageDays ?? '—'} days` },
-    { label: 'Sex', value: selectedCat.value.sex },
-    { label: 'Class', value: selectedCat.value.className ?? '—' },
-    { label: 'Level', value: selectedCat.value.level != null ? String(selectedCat.value.level) : '—' },
-    { label: 'Housed', value: selectedCat.value.house ? 'Yes' : 'No' },
-    { label: 'Status', value: statusList.length > 0 ? statusList.join(', ') : 'Normal' },
-    { label: 'Stats', value: stats }
-  ]
-})
-
 function cleanupShareUrl(): void {
   if (!shareImageUrl.value) return
   URL.revokeObjectURL(shareImageUrl.value)
   shareImageUrl.value = null
+}
+
+async function getDefaultCoverFile(): Promise<File> {
+  if (!defaultCoverFilePromise) {
+    defaultCoverFilePromise = (async () => {
+      const response = await fetch(shareCoverPlaceholderUrl)
+      if (!response.ok) {
+        throw new Error('Failed to load default share cover image.')
+      }
+
+      const blob = await response.blob()
+      return new File([blob], 'share-cover-placeholder.jpg', { type: blob.type || 'image/jpeg' })
+    })()
+  }
+
+  return await defaultCoverFilePromise
 }
 
 async function extractPayload(): Promise<CatSharePayload> {
@@ -211,12 +203,11 @@ async function generateShareImage(watermarkText: string): Promise<void> {
   shareError.value = null
 
   try {
+    const effectivePortraitFile = portraitFile.value ?? await getDefaultCoverFile()
     const shareBlob = await writeShareImage({
       watermarkText,
-      portraitFile: portraitFile.value,
-      defaultInfoRows: defaultInfoRows.value,
-      padding: 24,
-      jpegQuality: 0.95
+      portraitFile: effectivePortraitFile,
+      jpegQuality: 0.42
     })
 
     cleanupShareUrl()
