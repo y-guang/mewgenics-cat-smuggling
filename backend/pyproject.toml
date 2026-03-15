@@ -1,0 +1,14 @@
+[project]
+name = "mewgenics-kv-api"
+version = "0.1.0"
+description = "FastAPI + SQLite KV short-url backend"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+  "aiosqlite>=0.20.0,<1.0.0",
+  "fastapi>=0.115.0,<1.0.0",
+  "uvicorn[standard]>=0.30.0,<1.0.0",
+]
+
+[tool.uv]
+dev-dependencies = []
