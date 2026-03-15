@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { onBeforeUnmount, ref, watch } from 'vue'
-import { listCatsInSave, runCatRoundtripTest } from './lib/save'
+import { listCatsInSave, runCatInfoListingTest, runCatRoundtripTest } from './lib/save'
 
 const targetCatName = ref('Kevils')
 const selectedFile = ref<File | null>(null)
@@ -111,6 +111,30 @@ async function listCats(): Promise<void> {
   }
 }
 
+async function runInfoTest(): Promise<void> {
+  if (!selectedFile.value) {
+    errorMessage.value = 'Please choose a .sav file first.'
+    return
+  }
+
+  isRunning.value = true
+  errorMessage.value = null
+
+  try {
+    const bytes = new Uint8Array(await selectedFile.value.arrayBuffer())
+    const result = await runCatInfoListingTest(bytes)
+    reportText.value = result.report
+    catListText.value = result.cats
+      .map((cat) => `${cat.name ?? '(unnamed)'} | key=${cat.key} | id64=${cat.id64 ?? '-'}`)
+      .join('\n')
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    errorMessage.value = message
+  } finally {
+    isRunning.value = false
+  }
+}
+
 async function copyReport(): Promise<void> {
   if (!reportText.value) return
   await navigator.clipboard.writeText(reportText.value)
@@ -156,6 +180,14 @@ async function copyReport(): Promise<void> {
             @click="runTest"
           >
             {{ isRunning ? 'Running...' : 'Run Roundtrip Test' }}
+          </button>
+
+          <button
+            class="rounded bg-neutral-700 text-white px-4 py-2 text-sm disabled:opacity-40"
+            :disabled="isRunning"
+            @click="runInfoTest"
+          >
+            Run Cat Info Test
           </button>
 
           <button

@@ -1,4 +1,6 @@
 export * from './binary'
+export * from './catInfo'
+export * from './catInfoTest'
 export * from './catTransfer'
 export * from './houseState'
 export * from './lz4'
