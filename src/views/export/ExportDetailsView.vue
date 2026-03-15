@@ -4,8 +4,10 @@ import { useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import vueFilePond from 'vue-filepond'
 import 'filepond/dist/filepond.min.css'
+import { toast } from 'vue-sonner'
 import { extractCatByKey } from '../../lib/save'
 import { useExportFlowStore } from '../../stores/exportFlow'
+import { SHORT_URL_API_BASE } from '../../config/share'
 import { writeShareImage } from '../../utils/shareImage'
 import {
   buildLongShareUrl,
@@ -32,7 +34,6 @@ if (!selectedCat.value) {
 const portraitFiles = ref<File[]>(portraitFile.value ? [portraitFile.value] : [])
 const showCatInfo = ref(false)
 const importUrlBase = ref(`${window.location.origin}/import`)
-const shortApiBase = ref('')
 const longShareUrl = ref<string | null>(null)
 const shortShareUrl = ref<string | null>(null)
 const shortShareKey = ref<string | null>(null)
@@ -45,13 +46,15 @@ const longUrlError = ref<string | null>(null)
 const shareImageUrl = ref<string | null>(null)
 const shareImageFileName = ref('cat-share.jpg')
 const extractedPayload = ref<CatSharePayload | null>(null)
+const refreshRunId = ref(0)
+const isLongUrlExpanded = ref(false)
 
 function handlePortraitUpdate(items: FilePondLikeItem[]): void {
   const file = items[0]?.file ?? null
   store.setPortrait(file)
   portraitFiles.value = file ? [file] : []
-  if (shortShareUrl.value) {
-    void generateShareImage(shortShareUrl.value)
+  if (shortShareKey.value) {
+    void generateShareImage(shortShareKey.value)
   }
 }
 
@@ -170,21 +173,12 @@ async function generateLongUrl(): Promise<void> {
 
 async function createShortUrl(): Promise<void> {
   shortUrlError.value = null
-
-  if (!shortApiBase.value.trim()) {
-    shortUrlError.value = 'Please provide your short API base URL first.'
-    return
-  }
-
-  if (!longShareUrl.value) {
-    await generateLongUrl()
-    if (!longShareUrl.value) return
-  }
+  if (!longShareUrl.value) return
 
   isCreatingShortUrl.value = true
 
   try {
-    const created = await createShortShareUrl(shortApiBase.value.trim(), longShareUrl.value)
+    const created = await createShortShareUrl(SHORT_URL_API_BASE, longShareUrl.value)
     shortShareUrl.value = created.shortUrl
     shortShareKey.value = created.key
     await generateShareImage(created.key)
@@ -193,6 +187,21 @@ async function createShortUrl(): Promise<void> {
   } finally {
     isCreatingShortUrl.value = false
   }
+}
+
+async function refreshShareArtifacts(): Promise<void> {
+  const runId = ++refreshRunId.value
+
+  shortShareUrl.value = null
+  shortShareKey.value = null
+  shortUrlError.value = null
+  shareError.value = null
+  cleanupShareUrl()
+
+  await generateLongUrl()
+  if (refreshRunId.value !== runId || !longShareUrl.value) return
+
+  await createShortUrl()
 }
 
 async function generateShareImage(watermarkText: string): Promise<void> {
@@ -227,11 +236,16 @@ async function generateShareImage(watermarkText: string): Promise<void> {
 
 async function copyText(value: string | null): Promise<void> {
   if (!value) return
-  await navigator.clipboard.writeText(value)
+  try {
+    await navigator.clipboard.writeText(value)
+    toast.success('Copied to clipboard')
+  } catch {
+    toast.error('Copy failed')
+  }
 }
 
 onMounted(() => {
-  void generateLongUrl()
+  void refreshShareArtifacts()
 })
 
 onBeforeUnmount(() => {
@@ -358,7 +372,7 @@ onBeforeUnmount(() => {
 
     <div class="space-y-2">
       <h3 class="text-sm font-medium text-neutral-200">Portrait image</h3>
-      <p class="text-sm text-neutral-400">Optional. If provided, this image is used as the watermark carrier.</p>
+      <p class="text-sm text-neutral-400">Optional. Upload an image to use it as the cover.</p>
       <p v-if="portraitName" class="text-xs text-neutral-500">Selected image: {{ portraitName }}</p>
     </div>
 
@@ -373,114 +387,16 @@ onBeforeUnmount(() => {
     />
 
     <div class="space-y-3 rounded-lg border border-neutral-700 bg-neutral-700/20 px-4 py-4">
-      <div class="space-y-1">
-        <h3 class="text-sm font-medium text-neutral-200">Long URL (gzip payload)</h3>
-        <p class="text-sm text-neutral-400">This URL carries the full cat payload inside <code class="text-neutral-300">payload=</code>.</p>
-      </div>
-
-      <label class="space-y-1 block">
-        <span class="text-xs uppercase tracking-wide text-neutral-500">Import URL base</span>
-        <input
-          v-model="importUrlBase"
-          type="url"
-          placeholder="https://example.com/import"
-          class="w-full rounded border border-neutral-600 bg-neutral-700 text-neutral-100 placeholder-neutral-500 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-neutral-400"
-        >
-      </label>
-
-      <div class="flex items-center gap-2 flex-wrap">
-        <button
-          class="rounded border border-neutral-600 bg-neutral-700 text-neutral-100 px-3 py-1.5 text-sm hover:bg-neutral-600 transition-colors disabled:opacity-50"
-          :disabled="isGeneratingLongUrl"
-          @click="generateLongUrl"
-        >
-          {{ isGeneratingLongUrl ? 'Generating...' : 'Generate Long URL' }}
-        </button>
-        <button
-          class="rounded border border-neutral-600 bg-neutral-700 text-neutral-100 px-3 py-1.5 text-sm hover:bg-neutral-600 transition-colors disabled:opacity-50"
-          :disabled="!longShareUrl"
-          @click="copyText(longShareUrl)"
-        >
-          Copy
-        </button>
-      </div>
-
-      <p v-if="longUrlError" class="text-sm text-red-400 bg-red-950 border border-red-800 rounded p-2">
-        {{ longUrlError }}
-      </p>
-
-      <p v-if="longShareUrl" class="text-xs text-neutral-300 break-all rounded border border-neutral-700 bg-neutral-900/50 px-3 py-2">
-        {{ longShareUrl }}
-      </p>
-    </div>
-
-    <div class="space-y-3 rounded-lg border border-neutral-700 bg-neutral-700/20 px-4 py-4">
-      <div class="space-y-1">
-        <h3 class="text-sm font-medium text-neutral-200">Short URL</h3>
-        <p class="text-sm text-neutral-400">Send long URL to your KV API and get a short URL.</p>
-      </div>
-
-      <label class="space-y-1 block">
-        <span class="text-xs uppercase tracking-wide text-neutral-500">KV API base URL</span>
-        <input
-          v-model="shortApiBase"
-          type="url"
-          placeholder="https://kv.example.com"
-          class="w-full rounded border border-neutral-600 bg-neutral-700 text-neutral-100 placeholder-neutral-500 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-neutral-400"
-        >
-      </label>
-
-      <div class="flex items-center gap-2 flex-wrap">
-        <button
-          class="rounded border border-neutral-600 bg-neutral-700 text-neutral-100 px-3 py-1.5 text-sm hover:bg-neutral-600 transition-colors disabled:opacity-50"
-          :disabled="isCreatingShortUrl"
-          @click="createShortUrl"
-        >
-          {{ isCreatingShortUrl ? 'Creating...' : 'Create Short URL' }}
-        </button>
-        <button
-          class="rounded border border-neutral-600 bg-neutral-700 text-neutral-100 px-3 py-1.5 text-sm hover:bg-neutral-600 transition-colors disabled:opacity-50"
-          :disabled="!shortShareUrl"
-          @click="copyText(shortShareUrl)"
-        >
-          Copy
-        </button>
-      </div>
-
-      <p v-if="shortUrlError" class="text-sm text-red-400 bg-red-950 border border-red-800 rounded p-2">
-        {{ shortUrlError }}
-      </p>
-
-      <p v-if="shortShareKey" class="text-xs text-neutral-300 break-all rounded border border-neutral-700 bg-neutral-900/50 px-3 py-2">
-        Watermark key: {{ shortShareKey }}
-      </p>
-
-      <p v-if="shortShareUrl" class="text-xs text-neutral-300 break-all rounded border border-neutral-700 bg-neutral-900/50 px-3 py-2">
-        {{ shortShareUrl }}
-      </p>
-    </div>
-
-    <div class="space-y-3 rounded-lg border border-neutral-700 bg-neutral-700/20 px-4 py-4">
       <div class="flex items-center justify-between gap-3 flex-wrap">
         <div>
           <h3 class="text-sm font-medium text-neutral-200">Share image</h3>
-          <p class="text-sm text-neutral-400">Watermark contains only the short key. Portrait is optional. If no portrait is given, an info card image is generated.</p>
+          <p class="text-sm text-neutral-400">If you upload an image above, it will be used as the cover.</p>
         </div>
-        <span class="text-xs text-neutral-500">Output format: JPEG + blind watermark</span>
       </div>
 
-      <div class="flex items-center gap-2 flex-wrap">
-        <button
-          class="rounded border border-neutral-600 bg-neutral-700 text-neutral-100 px-3 py-1.5 text-sm hover:bg-neutral-600 transition-colors disabled:opacity-50"
-          :disabled="!shortShareKey || isGeneratingShare"
-          @click="shortShareKey ? generateShareImage(shortShareKey) : undefined"
-        >
-          {{ isGeneratingShare ? 'Generating...' : 'Generate Share Image' }}
-        </button>
-        <span class="text-xs text-neutral-500">Requires short URL key</span>
-      </div>
-
-      <p v-if="isGeneratingShare" class="text-sm text-neutral-400">Generating share image...</p>
+      <p v-if="isGeneratingLongUrl || isCreatingShortUrl || isGeneratingShare" class="text-sm text-neutral-400">
+        Preparing share image...
+      </p>
 
       <p v-if="shareError" class="text-sm text-red-400 bg-red-950 border border-red-800 rounded p-2">
         {{ shareError }}
@@ -489,7 +405,7 @@ onBeforeUnmount(() => {
       <div v-if="shareImageUrl" class="space-y-3">
         <img
           :src="shareImageUrl"
-          alt="Cat share image with QR"
+          alt="Cat share image with short-key watermark"
           class="w-full max-w-xl rounded border border-neutral-700 bg-neutral-900"
         >
         <a
@@ -501,5 +417,75 @@ onBeforeUnmount(() => {
         </a>
       </div>
     </div>
+
+    <div class="space-y-3 rounded-lg border border-neutral-700 bg-neutral-700/20 px-4 py-4">
+      <div class="space-y-1">
+        <h3 class="text-sm font-medium text-neutral-200">Short URL</h3>
+        <p class="text-sm text-neutral-400">Good for share, but avoid using this short URL to archive your cat. The validity of this link depends on how long the server stays alive — it may not outlive your cat.</p>
+      </div>
+
+      <p v-if="shortUrlError" class="text-sm text-red-400 bg-red-950 border border-red-800 rounded p-2">
+        {{ shortUrlError }}
+      </p>
+
+      <div v-if="shortShareUrl" class="flex items-start gap-2 rounded border border-neutral-700 bg-neutral-900/50 px-3 py-2">
+        <p class="text-xs text-neutral-300 break-all flex-1">{{ shortShareUrl }}</p>
+        <button
+          class="shrink-0 rounded border border-neutral-600 bg-neutral-700 text-neutral-100 p-1.5 hover:bg-neutral-600 transition-colors"
+          title="Copy short URL"
+          aria-label="Copy short URL"
+          @click="copyText(shortShareUrl)"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="h-4 w-4">
+            <path d="M8 7a3 3 0 0 1 3-3h7a3 3 0 0 1 3 3v7a3 3 0 0 1-3 3h-1v-2h1a1 1 0 0 0 1-1V7a1 1 0 0 0-1-1h-7a1 1 0 0 0-1 1v1H8V7Z" />
+            <path d="M6 9a3 3 0 0 0-3 3v7a3 3 0 0 0 3 3h7a3 3 0 0 0 3-3v-7a3 3 0 0 0-3-3H6Zm-1 3a1 1 0 0 1 1-1h7a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-7Z" />
+          </svg>
+        </button>
+      </div>
+
+    </div>
+
+    <div class="rounded-lg border border-neutral-700 bg-neutral-700/20 px-4 py-4 space-y-3">
+      <h3 class="text-sm font-medium text-neutral-200">Long URL</h3>
+      <p class="text-sm text-neutral-400">Archive your cat with it!</p>
+
+      <p v-if="longUrlError" class="text-sm text-red-400 bg-red-950 border border-red-800 rounded p-2">
+        {{ longUrlError }}
+      </p>
+
+      <div v-if="longShareUrl" class="flex items-start gap-2 rounded border border-neutral-700 bg-neutral-900/50 px-3 py-2">
+        <p
+          class="text-xs text-neutral-300 flex-1"
+          :class="isLongUrlExpanded ? 'break-all' : 'truncate'"
+        >
+          {{ longShareUrl }}
+        </p>
+
+        <button
+          class="shrink-0 rounded border border-neutral-600 bg-neutral-700 text-neutral-100 p-1.5 hover:bg-neutral-600 transition-colors"
+          :title="isLongUrlExpanded ? 'Collapse URL' : 'Expand URL'"
+          :aria-label="isLongUrlExpanded ? 'Collapse URL' : 'Expand URL'"
+          @click="isLongUrlExpanded = !isLongUrlExpanded"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="h-4 w-4">
+            <path v-if="isLongUrlExpanded" d="M12 8a1 1 0 0 1 .707.293l5 5a1 1 0 1 1-1.414 1.414L12 10.414l-4.293 4.293a1 1 0 0 1-1.414-1.414l5-5A1 1 0 0 1 12 8Z" />
+            <path v-else d="M12 16a1 1 0 0 1-.707-.293l-5-5a1 1 0 1 1 1.414-1.414L12 13.586l4.293-4.293a1 1 0 0 1 1.414 1.414l-5 5A1 1 0 0 1 12 16Z" />
+          </svg>
+        </button>
+
+        <button
+          class="shrink-0 rounded border border-neutral-600 bg-neutral-700 text-neutral-100 p-1.5 hover:bg-neutral-600 transition-colors"
+          title="Copy long URL"
+          aria-label="Copy long URL"
+          @click="copyText(longShareUrl)"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="h-4 w-4">
+            <path d="M8 7a3 3 0 0 1 3-3h7a3 3 0 0 1 3 3v7a3 3 0 0 1-3 3h-1v-2h1a1 1 0 0 0 1-1V7a1 1 0 0 0-1-1h-7a1 1 0 0 0-1 1v1H8V7Z" />
+            <path d="M6 9a3 3 0 0 0-3 3v7a3 3 0 0 0 3 3h7a3 3 0 0 0 3-3v-7a3 3 0 0 0-3-3H6Zm-1 3a1 1 0 0 1 1-1h7a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-7Z" />
+          </svg>
+        </button>
+      </div>
+    </div>
+
   </section>
 </template>

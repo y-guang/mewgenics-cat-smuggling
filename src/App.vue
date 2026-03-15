@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
+import { Toaster } from 'vue-sonner'
 
 const route = useRoute()
 
@@ -67,5 +68,7 @@ const crumbs = computed<Crumb[]>(() => {
 
       <RouterView />
     </div>
+
+    <Toaster position="top-right" rich-colors />
   </div>
 </template>

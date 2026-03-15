@@ -4,6 +4,7 @@ import { useRoute } from 'vue-router'
 import vueFilePond from 'vue-filepond'
 import 'filepond/dist/filepond.min.css'
 import { importCatIntoSave } from '../lib/save'
+import { SHORT_URL_API_BASE } from '../config/share'
 import { readShareImageWatermark } from '../utils/shareImage'
 import {
   buildShortLookupUrl,
@@ -35,7 +36,6 @@ const savePondFiles = ref<File[]>([])
 const carrierImageFiles = ref<File[]>([])
 const decodedCat = ref<DecodedImportCat | null>(null)
 const shareUrlInput = ref('')
-const shortApiBase = ref('http://127.0.0.1:8787')
 const resolvedLongUrl = ref<string | null>(null)
 const decodeError = ref<string | null>(null)
 const actionError = ref<string | null>(null)
@@ -85,14 +85,14 @@ async function decodeFromKey(key: string): Promise<DecodedImportCat> {
     throw new Error('Short key is empty.')
   }
 
-  const longUrl = await resolveShortShareKey(shortApiBase.value, trimmed)
+  const longUrl = await resolveShortShareKey(SHORT_URL_API_BASE, trimmed)
   const parsed = await parseLongShareUrl(longUrl)
   if (!parsed) {
     throw new Error('Short key resolved, but no valid payload was found in the long URL.')
   }
 
   resolvedLongUrl.value = longUrl
-  shareUrlInput.value = buildShortLookupUrl(shortApiBase.value, trimmed)
+  shareUrlInput.value = buildShortLookupUrl(SHORT_URL_API_BASE, trimmed)
   return normalizePayload(parsed)
 }
 
@@ -261,13 +261,8 @@ async function exportImportedSave(): Promise<void> {
 
     <section class="grid gap-4 lg:grid-cols-2">
       <div class="space-y-2 lg:col-span-2">
-        <span class="text-sm text-neutral-300">KV API base URL (for short key lookups)</span>
-        <input
-          v-model="shortApiBase"
-          type="url"
-          placeholder="http://127.0.0.1:8787"
-          class="w-full rounded border border-neutral-600 bg-neutral-700 text-neutral-100 placeholder-neutral-500 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-neutral-400"
-        >
+        <span class="text-sm text-neutral-300">KV API base URL (config)</span>
+        <p class="text-xs text-neutral-500 break-all">{{ SHORT_URL_API_BASE }}</p>
       </div>
 
       <div class="space-y-2 lg:col-span-2">
