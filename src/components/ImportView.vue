@@ -6,9 +6,11 @@ import 'filepond/dist/filepond.min.css'
 import { importCatIntoSave } from '../lib/save'
 import { readShareImageWatermark } from '../utils/shareImage'
 import {
+  buildShortLookupUrl,
   extractPayloadTokenFromUrl,
   parseLongShareUrl,
   parsePayloadToken,
+  resolveShortShareKey,
   resolveShortShareUrl,
   type DecodedCatSharePayload,
 } from '../utils/shareTransfer'
@@ -33,6 +35,7 @@ const savePondFiles = ref<File[]>([])
 const carrierImageFiles = ref<File[]>([])
 const decodedCat = ref<DecodedImportCat | null>(null)
 const shareUrlInput = ref('')
+const shortApiBase = ref('http://127.0.0.1:8787')
 const resolvedLongUrl = ref<string | null>(null)
 const decodeError = ref<string | null>(null)
 const actionError = ref<string | null>(null)
@@ -76,6 +79,23 @@ async function decodeFromUrl(rawUrl: string): Promise<DecodedImportCat> {
   return normalizePayload(parsed)
 }
 
+async function decodeFromKey(key: string): Promise<DecodedImportCat> {
+  const trimmed = key.trim()
+  if (!trimmed) {
+    throw new Error('Short key is empty.')
+  }
+
+  const longUrl = await resolveShortShareKey(shortApiBase.value, trimmed)
+  const parsed = await parseLongShareUrl(longUrl)
+  if (!parsed) {
+    throw new Error('Short key resolved, but no valid payload was found in the long URL.')
+  }
+
+  resolvedLongUrl.value = longUrl
+  shareUrlInput.value = buildShortLookupUrl(shortApiBase.value, trimmed)
+  return normalizePayload(parsed)
+}
+
 async function decodeAndSet(rawUrl: string): Promise<void> {
   isDecoding.value = true
   decodeError.value = null
@@ -112,10 +132,9 @@ async function onCarrierImageChange(items: FilePondLikeItem[]): Promise<void> {
   try {
     const watermark = await readShareImageWatermark(file)
     if (!watermark) {
-      throw new Error('No short URL watermark found in this image.')
+      throw new Error('No short key watermark found in this image.')
     }
-    shareUrlInput.value = watermark
-    await decodeAndSet(watermark)
+    await decodeAndSetFromKey(watermark)
   } catch (error) {
     decodeError.value = error instanceof Error ? error.message : String(error)
   }
@@ -123,6 +142,23 @@ async function onCarrierImageChange(items: FilePondLikeItem[]): Promise<void> {
 
 async function decodeFromInputUrl(): Promise<void> {
   await decodeAndSet(shareUrlInput.value)
+}
+
+async function decodeAndSetFromKey(shortKey: string): Promise<void> {
+  isDecoding.value = true
+  decodeError.value = null
+  actionError.value = null
+  importedResult.value = null
+  decodedCat.value = null
+  resolvedLongUrl.value = null
+
+  try {
+    decodedCat.value = await decodeFromKey(shortKey)
+  } catch (error) {
+    decodeError.value = error instanceof Error ? error.message : String(error)
+  } finally {
+    isDecoding.value = false
+  }
 }
 
 function onSaveFileChange(items: FilePondLikeItem[]): void {
@@ -225,6 +261,16 @@ async function exportImportedSave(): Promise<void> {
 
     <section class="grid gap-4 lg:grid-cols-2">
       <div class="space-y-2 lg:col-span-2">
+        <span class="text-sm text-neutral-300">KV API base URL (for short key lookups)</span>
+        <input
+          v-model="shortApiBase"
+          type="url"
+          placeholder="http://127.0.0.1:8787"
+          class="w-full rounded border border-neutral-600 bg-neutral-700 text-neutral-100 placeholder-neutral-500 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-neutral-400"
+        >
+      </div>
+
+      <div class="space-y-2 lg:col-span-2">
         <span class="text-sm text-neutral-300">Share URL (long or short)</span>
         <div class="flex gap-2">
           <input
@@ -255,6 +301,7 @@ async function exportImportedSave(): Promise<void> {
           label-idle="<span class='filepond--label-action'>Drop share image here</span><br>or click to browse"
           @updatefiles="onCarrierImageChange"
         />
+        <p class="text-xs text-neutral-500">Image watermark should contain only the short key.</p>
       </div>
 
       <div class="space-y-2">

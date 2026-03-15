@@ -25,6 +25,11 @@ interface ShortKvGetResponse {
   value_b64: string
 }
 
+export interface ShortShareUrlResult {
+  key: string
+  shortUrl: string
+}
+
 function bytesToBase64(bytes: Uint8Array): string {
   let binary = ''
   const chunkSize = 0x8000
@@ -85,6 +90,11 @@ export function encodeTextToBase64(text: string): string {
 
 export function decodeTextFromBase64(base64: string): string {
   return new TextDecoder().decode(base64ToBytes(base64))
+}
+
+export function buildShortLookupUrl(apiBaseUrl: string, key: string): string {
+  const base = normalizeApiBaseUrl(apiBaseUrl)
+  return `${base}/kv/${encodeURIComponent(key)}`
 }
 
 export async function buildLongShareUrl(payload: CatSharePayload, importUrl: string): Promise<string> {
@@ -150,7 +160,7 @@ export async function parseLongShareUrl(rawUrl: string): Promise<DecodedCatShare
   return parsePayloadToken(token)
 }
 
-export async function createShortShareUrl(apiBaseUrl: string, longUrl: string): Promise<string> {
+export async function createShortShareUrl(apiBaseUrl: string, longUrl: string): Promise<ShortShareUrlResult> {
   const base = normalizeApiBaseUrl(apiBaseUrl)
   const response = await fetch(`${base}/kv`, {
     method: 'POST',
@@ -171,7 +181,10 @@ export async function createShortShareUrl(apiBaseUrl: string, longUrl: string): 
     throw new Error('Short URL create response is missing key')
   }
 
-  return `${base}/kv/${encodeURIComponent(payload.key)}`
+  return {
+    key: payload.key,
+    shortUrl: buildShortLookupUrl(base, payload.key),
+  }
 }
 
 export async function resolveShortShareUrl(shortUrl: string): Promise<string> {
@@ -186,4 +199,9 @@ export async function resolveShortShareUrl(shortUrl: string): Promise<string> {
   }
 
   return decodeTextFromBase64(payload.value_b64)
+}
+
+export async function resolveShortShareKey(apiBaseUrl: string, key: string): Promise<string> {
+  const lookupUrl = buildShortLookupUrl(apiBaseUrl, key)
+  return resolveShortShareUrl(lookupUrl)
 }

@@ -35,6 +35,7 @@ const importUrlBase = ref(`${window.location.origin}/import`)
 const shortApiBase = ref('')
 const longShareUrl = ref<string | null>(null)
 const shortShareUrl = ref<string | null>(null)
+const shortShareKey = ref<string | null>(null)
 const isGeneratingLongUrl = ref(false)
 const isCreatingShortUrl = ref(false)
 const isGeneratingShare = ref(false)
@@ -183,8 +184,10 @@ async function createShortUrl(): Promise<void> {
   isCreatingShortUrl.value = true
 
   try {
-    shortShareUrl.value = await createShortShareUrl(shortApiBase.value.trim(), longShareUrl.value)
-    await generateShareImage(shortShareUrl.value)
+    const created = await createShortShareUrl(shortApiBase.value.trim(), longShareUrl.value)
+    shortShareUrl.value = created.shortUrl
+    shortShareKey.value = created.key
+    await generateShareImage(created.key)
   } catch (error) {
     shortUrlError.value = error instanceof Error ? error.message : String(error)
   } finally {
@@ -448,6 +451,10 @@ onBeforeUnmount(() => {
         {{ shortUrlError }}
       </p>
 
+      <p v-if="shortShareKey" class="text-xs text-neutral-300 break-all rounded border border-neutral-700 bg-neutral-900/50 px-3 py-2">
+        Watermark key: {{ shortShareKey }}
+      </p>
+
       <p v-if="shortShareUrl" class="text-xs text-neutral-300 break-all rounded border border-neutral-700 bg-neutral-900/50 px-3 py-2">
         {{ shortShareUrl }}
       </p>
@@ -457,7 +464,7 @@ onBeforeUnmount(() => {
       <div class="flex items-center justify-between gap-3 flex-wrap">
         <div>
           <h3 class="text-sm font-medium text-neutral-200">Share image</h3>
-          <p class="text-sm text-neutral-400">Watermark contains the short URL. Portrait is optional. If no portrait is given, an info card image is generated.</p>
+          <p class="text-sm text-neutral-400">Watermark contains only the short key. Portrait is optional. If no portrait is given, an info card image is generated.</p>
         </div>
         <span class="text-xs text-neutral-500">Output format: JPEG + blind watermark</span>
       </div>
@@ -465,12 +472,12 @@ onBeforeUnmount(() => {
       <div class="flex items-center gap-2 flex-wrap">
         <button
           class="rounded border border-neutral-600 bg-neutral-700 text-neutral-100 px-3 py-1.5 text-sm hover:bg-neutral-600 transition-colors disabled:opacity-50"
-          :disabled="!shortShareUrl || isGeneratingShare"
-          @click="shortShareUrl ? generateShareImage(shortShareUrl) : undefined"
+          :disabled="!shortShareKey || isGeneratingShare"
+          @click="shortShareKey ? generateShareImage(shortShareKey) : undefined"
         >
           {{ isGeneratingShare ? 'Generating...' : 'Generate Share Image' }}
         </button>
-        <span class="text-xs text-neutral-500">Requires short URL</span>
+        <span class="text-xs text-neutral-500">Requires short URL key</span>
       </div>
 
       <p v-if="isGeneratingShare" class="text-sm text-neutral-400">Generating share image...</p>
