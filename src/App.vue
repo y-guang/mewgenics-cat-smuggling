@@ -3,42 +3,44 @@ import { ref } from 'vue'
 import ExportView from './components/ExportView.vue'
 import ImportView from './components/ImportView.vue'
 
-type Tab = 'export' | 'import'
-const activeTab = ref<Tab>('export')
-
-const tabs: { id: Tab; label: string }[] = [
-  { id: 'export', label: 'Export' },
-  { id: 'import', label: 'Import' }
-]
+type Mode = 'export' | 'import'
+const mode = ref<Mode | null>(null)
 </script>
 
 <template>
   <div class="min-h-screen bg-neutral-900 text-neutral-100 p-6 md:p-10">
-    <div class="max-w-4xl mx-auto space-y-6">
-      <header class="space-y-1">
+    <div class="max-w-4xl mx-auto space-y-8">
+      <header class="flex items-baseline gap-4">
         <h1 class="text-2xl md:text-3xl font-semibold tracking-tight">Mewgenics Cat Smuggler</h1>
-        <p class="text-sm text-neutral-400">Transfer cats between save files.</p>
+        <button
+          v-if="mode !== null"
+          class="text-xs text-neutral-500 hover:text-neutral-300 transition-colors"
+          @click="mode = null"
+        >
+          ← back
+        </button>
       </header>
 
-      <!-- Tab bar -->
-      <div class="flex gap-1 border-b border-neutral-700">
+      <!-- Choice screen -->
+      <div v-if="mode === null" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <button
-          v-for="tab in tabs"
-          :key="tab.id"
-          class="px-4 py-2 text-sm font-medium transition-colors"
-          :class="
-            activeTab === tab.id
-              ? 'border-b-2 border-neutral-200 text-neutral-100 -mb-px'
-              : 'text-neutral-500 hover:text-neutral-300'
-          "
-          @click="activeTab = tab.id"
+          class="rounded-lg border border-neutral-700 bg-neutral-800 hover:bg-neutral-700 hover:border-neutral-500 transition-colors p-8 text-left space-y-2"
+          @click="mode = 'export'"
         >
-          {{ tab.label }}
+          <div class="text-lg font-medium text-neutral-100">Export</div>
+          <div class="text-sm text-neutral-400">Pick cats from a save file to transfer out.</div>
+        </button>
+        <button
+          class="rounded-lg border border-neutral-700 bg-neutral-800 hover:bg-neutral-700 hover:border-neutral-500 transition-colors p-8 text-left space-y-2"
+          @click="mode = 'import'"
+        >
+          <div class="text-lg font-medium text-neutral-100">Import</div>
+          <div class="text-sm text-neutral-400">Inject a previously exported cat into a save file.</div>
         </button>
       </div>
 
-      <ExportView v-if="activeTab === 'export'" />
-      <ImportView v-else-if="activeTab === 'import'" />
+      <ExportView v-else-if="mode === 'export'" />
+      <ImportView v-else-if="mode === 'import'" />
     </div>
   </div>
 </template>
