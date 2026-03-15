@@ -17,7 +17,7 @@ import { useExportFlowStore } from '../../stores/exportFlow'
 
 const router = useRouter()
 const store = useExportFlowStore()
-const { cats, sourceSaveFile, selectedCatKey } = storeToRefs(store)
+const { cats, sourceSaveFile } = storeToRefs(store)
 
 if (!sourceSaveFile.value) {
   router.replace('/export/upload')
@@ -47,20 +47,6 @@ function chooseCat(cat: CatInfoRecord): void {
 const colHelper = createColumnHelper<CatInfoRecord>()
 
 const columns = [
-  colHelper.display({
-    id: 'select',
-    header: () => '',
-    cell: ({ row }) =>
-      h('input', {
-        type: 'radio',
-        name: 'selected-cat',
-        class: 'accent-neutral-800',
-        checked: selectedCatKey.value === row.original.key,
-        onClick: (event: Event) => event.stopPropagation(),
-        onChange: () => chooseCat(row.original)
-      }),
-    enableSorting: false
-  }),
   colHelper.accessor('name', {
     header: 'Name',
     cell: (info) => info.getValue() ?? '(unnamed)',

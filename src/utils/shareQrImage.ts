@@ -4,10 +4,16 @@ import * as QRCode from 'qrcode'
 interface WriteShareImageOptions {
   qrText: string
   portraitFile?: File | null
+  defaultInfoRows?: Array<{ label: string, value: string }>
   qrSize?: number
   padding?: number
   backgroundColor?: string
   jpegQuality?: number
+}
+
+interface InfoCardLayout {
+  height: number
+  rowHeight: number
 }
 
 function readImage(fileOrBlob: File | Blob): Promise<HTMLImageElement> {
@@ -33,6 +39,57 @@ function readDataUrlImage(dataUrl: string): Promise<HTMLImageElement> {
     img.onerror = () => reject(new Error('Failed to load generated QR image'))
     img.src = dataUrl
   })
+}
+
+function measureInfoCardHeight(rows: Array<{ label: string, value: string }>, rowHeight: number): number {
+  const titleHeight = 40
+  const verticalPadding = 18
+  const bodyHeight = rows.length * rowHeight
+  return titleHeight + bodyHeight + verticalPadding
+}
+
+function drawInfoCard(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  width: number,
+  rows: Array<{ label: string, value: string }>
+): InfoCardLayout {
+  const rowHeight = 28
+  const cardHeight = measureInfoCardHeight(rows, rowHeight)
+
+  ctx.fillStyle = '#f3f4f6'
+  ctx.fillRect(x, y, width, cardHeight)
+
+  ctx.strokeStyle = '#d1d5db'
+  ctx.lineWidth = 1
+  ctx.strokeRect(x + 0.5, y + 0.5, width - 1, cardHeight - 1)
+
+  ctx.fillStyle = '#111827'
+  ctx.font = '600 18px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial'
+  ctx.fillText('Cat Info', x + 18, y + 28)
+
+  const labelX = x + 18
+  const valueX = x + Math.floor(width * 0.38)
+  const maxValueWidth = width - (valueX - x) - 18
+  const startY = y + 56
+
+  ctx.font = '600 13px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial'
+  ctx.fillStyle = '#4b5563'
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i]!
+    const lineY = startY + i * rowHeight
+    ctx.fillText(row.label, labelX, lineY)
+
+    ctx.fillStyle = '#111827'
+    ctx.font = '400 13px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial'
+    ctx.fillText(row.value, valueX, lineY, maxValueWidth)
+
+    ctx.fillStyle = '#4b5563'
+    ctx.font = '600 13px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial'
+  }
+
+  return { height: cardHeight, rowHeight }
 }
 
 export async function writeShareImage(options: WriteShareImageOptions): Promise<Blob> {
@@ -63,10 +120,14 @@ export async function writeShareImage(options: WriteShareImageOptions): Promise<
   const portraitDrawWidth = portraitImage ? targetContentWidth : 0
   const portraitDrawHeight = portraitImage ? Math.round(portraitImage.height * portraitRatio) : 0
 
+  const infoRows = !portraitImage ? (options.defaultInfoRows ?? []) : []
+  const infoCardHeight = infoRows.length > 0 ? measureInfoCardHeight(infoRows, 28) : 0
+  const infoGap = infoRows.length > 0 ? 20 : 0
+
   const contentWidth = Math.max(qrImage.width, portraitDrawWidth, targetContentWidth)
   const canvasWidth = contentWidth + padding * 2
   const gap = portraitImage ? 20 : 0
-  const canvasHeight = padding * 2 + portraitDrawHeight + gap + qrImage.height
+  const canvasHeight = padding * 2 + portraitDrawHeight + gap + infoCardHeight + infoGap + qrImage.height
 
   const canvas = document.createElement('canvas')
   canvas.width = canvasWidth
@@ -83,6 +144,12 @@ export async function writeShareImage(options: WriteShareImageOptions): Promise<
     const x = Math.floor((canvasWidth - portraitDrawWidth) / 2)
     ctx.drawImage(portraitImage, x, y, portraitDrawWidth, portraitDrawHeight)
     y += portraitDrawHeight + gap
+  }
+
+  if (infoRows.length > 0) {
+    const infoX = Math.floor((canvasWidth - contentWidth) / 2)
+    const layout = drawInfoCard(ctx, infoX, y, contentWidth, infoRows)
+    y += layout.height + infoGap
   }
 
   const qrX = Math.floor((canvasWidth - qrImage.width) / 2)
