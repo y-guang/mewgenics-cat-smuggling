@@ -61,27 +61,62 @@ function normalizeCatId64(id64: bigint | string): bigint {
   return typeof id64 === 'bigint' ? id64 : BigInt(id64)
 }
 
+function isPlausibleCatName(name: string): boolean {
+  const trimmed = name.trim()
+  if (!trimmed) return false
+  if (trimmed.length > 64) return false
+
+  let weird = 0
+  for (const ch of trimmed) {
+    const code = ch.charCodeAt(0)
+    const isAsciiPrintable = code >= 32 && code <= 126
+    const isLatin1Letter = code >= 0x00C0 && code <= 0x017F
+    if (!isAsciiPrintable && !isLatin1Letter) weird++
+  }
+
+  // Allow occasional odd bytes, but reject mostly-garbage strings.
+  return weird <= Math.max(1, Math.floor(trimmed.length / 4))
+}
+
+function readNameFromLength(dec: Uint8Array, nameLength: number): string | null {
+  if (nameLength <= 0 || nameLength > 128) return null
+  const nameOffset = 0x14
+  const end = nameOffset + nameLength * 2
+  if (end > dec.length) return null
+
+  const name = readUtf16LE(dec, nameOffset, nameLength).replace(/\0+$/, '')
+  return isPlausibleCatName(name) ? name : null
+}
+
+function readNullTerminatedName(dec: Uint8Array): string | null {
+  const nameOffset = 0x14
+  if (nameOffset + 2 > dec.length) return null
+
+  const maxUnits = Math.min(64, Math.floor((dec.length - nameOffset) / 2))
+  let units = 0
+  for (; units < maxUnits; units++) {
+    const codeUnit = u16LE(dec, nameOffset + units * 2)
+    if (codeUnit === 0) break
+  }
+
+  if (units <= 0) return null
+  const name = readUtf16LE(dec, nameOffset, units).replace(/\0+$/, '')
+  return isPlausibleCatName(name) ? name : null
+}
+
 function detectName(dec: Uint8Array): string | null {
+  // Canonical known offsets.
   for (const offset of [0x0C, 0x10]) {
     if (offset + 4 > dec.length) {
       continue
     }
 
     const nameLength = u32LE(dec, offset)
-    if (nameLength === 0 || nameLength > 128) {
-      continue
-    }
+    const name = readNameFromLength(dec, nameLength)
+    if (!name) continue
 
     const nameOffset = 0x14
     const end = nameOffset + nameLength * 2
-    if (end > dec.length) {
-      continue
-    }
-
-    const name = readUtf16LE(dec, nameOffset, nameLength)
-    if (!name) {
-      continue
-    }
 
     const sexAOffset = end + 8
     const sexBOffset = end + 12
@@ -92,6 +127,23 @@ function detectName(dec: Uint8Array): string | null {
         return name
       }
     }
+
+    // Name is plausible even if duplicated sex check changed in newer builds.
+    return name
+  }
+
+  // Fallback: some versions appear to store useful low 16 bits while u32 looks invalid.
+  for (const offset of [0x0C, 0x10]) {
+    if (offset + 2 > dec.length) continue
+    const nameLength16 = u16LE(dec, offset)
+    const name = readNameFromLength(dec, nameLength16)
+    if (name) return name
+  }
+
+  // Fallback: null-terminated UTF-16 at 0x14.
+  const zeroTerminated = readNullTerminatedName(dec)
+  if (zeroTerminated) {
+    return zeroTerminated
   }
 
   return null

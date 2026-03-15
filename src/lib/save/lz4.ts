@@ -1,4 +1,8 @@
-import { compress as lz4Compress, decompress as lz4Decompress } from 'lz4-wasm'
+import {
+  compressBlock as lz4CompressBlock,
+  compressBound as lz4CompressBound,
+  decompressBlock as lz4DecompressBlock
+} from 'lz4js'
 import { u32LE, writeU32LE } from './binary'
 
 export type LZ4Variant = 'A' | 'B'
@@ -6,6 +10,29 @@ export type LZ4Variant = 'A' | 'B'
 export interface DecompressResult {
   data: Uint8Array
   variant: LZ4Variant
+}
+
+function decodeRawBlock(input: Uint8Array, uncompressedLength: number): Uint8Array {
+  const out = new Uint8Array(uncompressedLength)
+  const written = lz4DecompressBlock(input, out, 4, input.length - 4, 0)
+  if (written !== uncompressedLength) {
+    throw new Error(`LZ4 decompression failed: size mismatch (${written} != ${uncompressedLength})`)
+  }
+  return out
+}
+
+function encodeRawBlock(data: Uint8Array): Uint8Array {
+  const dst = new Uint8Array(lz4CompressBound(data.length))
+  const hashTable = new Uint32Array(1 << 16)
+  const written = lz4CompressBlock(data, dst, 0, data.length, hashTable)
+  if (written <= 0) {
+    throw new Error('LZ4 compression failed')
+  }
+
+  const out = new Uint8Array(4 + written)
+  writeU32LE(out, 0, data.length)
+  out.set(dst.subarray(0, written), 4)
+  return out
 }
 
 export async function decompressCatBlob(wrapped: Uint8Array): Promise<DecompressResult> {
@@ -22,26 +49,18 @@ export async function decompressCatBlob(wrapped: Uint8Array): Promise<Decompress
         const candidate = new Uint8Array(4 + compressedLength)
         writeU32LE(candidate, 0, uncompressedLength)
         candidate.set(wrapped.subarray(8, 8 + compressedLength), 4)
-        const data = lz4Decompress(candidate)
-        if (data.length === uncompressedLength) {
-          return { data, variant: 'B' }
-        }
+        return { data: decodeRawBlock(candidate, uncompressedLength), variant: 'B' }
       } catch {
         // Fall through to variant A.
       }
     }
   }
 
-  const data = lz4Decompress(wrapped)
-  if (data.length !== uncompressedLength) {
-    throw new Error('LZ4 decompression failed: size mismatch')
-  }
-
-  return { data, variant: 'A' }
+  return { data: decodeRawBlock(wrapped, uncompressedLength), variant: 'A' }
 }
 
 export async function recompressCatBlob(data: Uint8Array, variant: LZ4Variant): Promise<Uint8Array> {
-  const compressed = lz4Compress(data)
+  const compressed = encodeRawBlock(data)
 
   if (variant === 'A') {
     return compressed
