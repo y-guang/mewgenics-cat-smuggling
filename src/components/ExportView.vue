@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, h } from 'vue'
+import vueFilePond from 'vue-filepond'
+import 'filepond/dist/filepond.min.css'
 import {
   createColumnHelper,
   getCoreRowModel,
@@ -12,42 +14,68 @@ import {
 } from '@tanstack/vue-table'
 import { readCatsInfo, type CatInfoRecord } from '../lib/save'
 
+type ExportStage = 'dropzone' | 'loading' | 'table'
+
+interface FilePondLikeItem {
+  file?: File
+}
+
+const FilePond = vueFilePond()
+
+const stage = ref<ExportStage>('dropzone')
 const selectedFile = ref<File | null>(null)
-const isLoading = ref(false)
 const errorMessage = ref<string | null>(null)
 const cats = ref<CatInfoRecord[]>([])
-const loaded = ref(false)
+const pondFiles = ref<File[]>([])
 
 const globalFilter = ref('')
 const sorting = ref<SortingState>([])
 const columnFilters = ref<ColumnFiltersState>([])
 
-function onFileChange(event: Event): void {
-  const input = event.target as HTMLInputElement
-  selectedFile.value = input.files?.[0] ?? null
+function resetExportFlow(): void {
+  stage.value = 'dropzone'
+  selectedFile.value = null
   errorMessage.value = null
   cats.value = []
-  loaded.value = false
+  pondFiles.value = []
+  globalFilter.value = ''
+  sorting.value = []
+  columnFilters.value = []
   rowSelection.value = {}
 }
 
-async function loadSave(): Promise<void> {
-  if (!selectedFile.value) {
-    errorMessage.value = 'Please choose a .sav file first.'
-    return
-  }
-  isLoading.value = true
+async function loadSave(file: File): Promise<void> {
+  stage.value = 'loading'
   errorMessage.value = null
+
   try {
-    const bytes = new Uint8Array(await selectedFile.value.arrayBuffer())
+    const bytes = new Uint8Array(await file.arrayBuffer())
     const result = await readCatsInfo(bytes)
+    selectedFile.value = file
     cats.value = result.cats
-    loaded.value = true
+    stage.value = 'table'
   } catch (err) {
     errorMessage.value = err instanceof Error ? err.message : String(err)
-  } finally {
-    isLoading.value = false
+    stage.value = 'dropzone'
+    pondFiles.value = []
   }
+}
+
+async function handleFileUpdate(items: FilePondLikeItem[]): Promise<void> {
+  const file = items[0]?.file
+  if (!file) {
+    resetExportFlow()
+    return
+  }
+
+  if (!file.name.toLowerCase().endsWith('.sav')) {
+    errorMessage.value = 'Please select a .sav file.'
+    pondFiles.value = []
+    return
+  }
+
+  pondFiles.value = [file]
+  await loadSave(file)
 }
 
 function statCell(val: number | undefined | null): string {
@@ -233,37 +261,40 @@ const selectedCount = computed(() => Object.keys(rowSelection.value).length)
 
 <template>
   <div class="space-y-6">
-    <!-- File picker -->
-    <section class="bg-neutral-800 border border-neutral-700 rounded-lg p-5 space-y-4">
-      <h2 class="text-base font-medium text-neutral-100">Source save file</h2>
-      <label class="block space-y-1">
-        <span class="text-sm text-neutral-400">Select a <code class="text-neutral-300">.sav</code> file</span>
-        <input
-          type="file"
-          accept=".sav"
-          class="block w-full text-sm text-neutral-300 file:mr-3 file:rounded file:border-0 file:bg-neutral-700 file:text-neutral-100 file:px-3 file:py-1.5 file:cursor-pointer hover:file:bg-neutral-600"
-          @change="onFileChange"
-        />
-      </label>
-      <button
-        class="rounded border border-neutral-600 bg-neutral-700 text-neutral-100 px-4 py-2 text-sm disabled:opacity-40 hover:bg-neutral-600 transition-colors"
-        :disabled="!selectedFile || isLoading"
-        @click="loadSave"
-      >
-        {{ isLoading ? 'Loading…' : 'Load save' }}
-      </button>
+    <section v-if="stage !== 'table'" class="bg-neutral-800 border border-neutral-700 rounded-lg p-5 space-y-4">
+      <div class="space-y-1">
+        <h2 class="text-base font-medium text-neutral-100">Source save file</h2>
+        <p class="text-sm text-neutral-400">Drop a <code class="text-neutral-300">.sav</code> file here or click to browse. The cat table opens as soon as the file is parsed.</p>
+      </div>
+
+      <FilePond
+        name="sourceSave"
+        :allow-multiple="false"
+        :files="pondFiles"
+        credits="false"
+        class="export-dropzone"
+        label-idle="<span class='filepond--label-action'>Drop save file here</span><br>or click to browse"
+        @updatefiles="handleFileUpdate"
+      />
+
+      <div v-if="stage === 'loading'" class="rounded-lg border border-neutral-700 bg-neutral-700/40 px-4 py-3 text-sm text-neutral-300">
+        Parsing save file and loading cat data...
+      </div>
+
       <p v-if="errorMessage" class="text-sm text-red-400 bg-red-950 border border-red-800 rounded p-2">
         {{ errorMessage }}
       </p>
     </section>
 
-    <!-- Cat table -->
-    <section v-if="loaded" class="bg-neutral-800 border border-neutral-700 rounded-lg p-5 space-y-4">
+    <section v-if="stage === 'table'" class="bg-neutral-800 border border-neutral-700 rounded-lg p-5 space-y-4">
       <div class="flex items-center justify-between gap-4 flex-wrap">
-        <h2 class="text-base font-medium text-neutral-100">
-          Cats
-          <span class="text-neutral-500 font-normal text-sm ml-1">({{ cats.length }})</span>
-        </h2>
+        <div class="space-y-1">
+          <h2 class="text-base font-medium text-neutral-100">
+            Cats
+            <span class="text-neutral-500 font-normal text-sm ml-1">({{ cats.length }})</span>
+          </h2>
+          <p class="text-xs text-neutral-500">Loaded from {{ selectedFile?.name }}</p>
+        </div>
         <div class="flex items-center gap-3">
           <input
             v-model="globalFilter"
@@ -272,6 +303,12 @@ const selectedCount = computed(() => Object.keys(rowSelection.value).length)
             class="rounded border border-neutral-600 bg-neutral-700 text-neutral-100 placeholder-neutral-500 px-3 py-1.5 text-sm w-52 focus:outline-none focus:ring-1 focus:ring-neutral-400"
           />
           <span v-if="selectedCount > 0" class="text-sm text-neutral-400">{{ selectedCount }} selected</span>
+          <button
+            class="rounded border border-neutral-600 bg-neutral-700 text-neutral-100 px-3 py-1.5 text-sm disabled:opacity-40 hover:bg-neutral-600 transition-colors"
+            @click="resetExportFlow"
+          >
+            Change save
+          </button>
         </div>
       </div>
 

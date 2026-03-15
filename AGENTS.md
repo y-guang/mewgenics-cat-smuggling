@@ -22,6 +22,7 @@ A front-end only tool to help user transfer their cat in the game Mewgenics by e
 
 - Modern, grayscale, minimal.
 - Prefer well-known, reputable UI/component libraries over hand-crafted low-level HTML elements. Use `@tanstack/vue-table` for data tables, etc. Do not manually design complex UI elements that a library handles well.
+- Prefer progressive disclosure for multi-step or mutually exclusive flows: present the next decision only when prior context is known, then transition automatically instead of keeping stale options on screen.
 
 ## Resource
 

@@ -4,3 +4,56 @@ html {
   background-color: var(--color-neutral-900);
   color-scheme: dark;
 }
+
+body {
+  background-color: var(--color-neutral-900);
+}
+
+.filepond--root {
+  margin: 0;
+  font-family: inherit;
+}
+
+.filepond--panel-root {
+  background-color: var(--color-neutral-800) !important;
+  border: 1px dashed var(--color-neutral-600) !important;
+  border-radius: 1rem;
+}
+
+.filepond--panel-root,
+.filepond--panel-root .filepond--panel,
+.filepond--panel-root .filepond--panel-top,
+.filepond--panel-root .filepond--panel-center,
+.filepond--panel-root .filepond--panel-bottom {
+  background-color: var(--color-neutral-800) !important;
+}
+
+.filepond--drop-label {
+  color: var(--color-neutral-300);
+  background-color: transparent !important;
+}
+
+.filepond--drop-label label {
+  color: var(--color-neutral-300);
+}
+
+.filepond--label-action {
+  color: var(--color-neutral-100);
+  text-decoration-color: var(--color-neutral-500);
+}
+
+.filepond--item-panel {
+  background-color: var(--color-neutral-700) !important;
+}
+
+.filepond--file-action-button {
+  color: var(--color-neutral-100);
+}
+
+.filepond--drip {
+  background: color-mix(in srgb, var(--color-neutral-800) 88%, transparent) !important;
+}
+
+.filepond--drip-blob {
+  background: var(--color-neutral-600) !important;
+}
