@@ -1,20 +1,26 @@
-import jsQR from 'jsqr'
-import * as QRCode from 'qrcode'
+import {
+  embedShortTextBlindWatermark,
+  extractShortTextBlindWatermark,
+  type ImageDataLike,
+} from './infoBlindWatermark'
 
 interface WriteShareImageOptions {
-  qrText: string
+  watermarkText: string
   portraitFile?: File | null
   defaultInfoRows?: Array<{ label: string, value: string }>
-  qrSize?: number
   padding?: number
   backgroundColor?: string
   jpegQuality?: number
+  watermarkPassword?: number
+  watermarkMaxChars?: number
 }
 
 interface InfoCardLayout {
   height: number
-  rowHeight: number
 }
+
+const DEFAULT_WATERMARK_PASSWORD = 20260316
+const DEFAULT_WATERMARK_MAX_CHARS = 96
 
 function readImage(fileOrBlob: File | Blob): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
@@ -29,15 +35,6 @@ function readImage(fileOrBlob: File | Blob): Promise<HTMLImageElement> {
       reject(new Error('Failed to load image'))
     }
     img.src = url
-  })
-}
-
-function readDataUrlImage(dataUrl: string): Promise<HTMLImageElement> {
-  return new Promise((resolve, reject) => {
-    const img = new Image()
-    img.onload = () => resolve(img)
-    img.onerror = () => reject(new Error('Failed to load generated QR image'))
-    img.src = dataUrl
   })
 }
 
@@ -89,45 +86,48 @@ function drawInfoCard(
     ctx.font = '600 13px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial'
   }
 
-  return { height: cardHeight, rowHeight }
+  return { height: cardHeight }
+}
+
+async function encodeCanvasAsJpeg(canvas: HTMLCanvasElement, quality: number): Promise<Blob> {
+  return await new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob((result) => {
+      if (!result) {
+        reject(new Error('Failed to encode composed share image'))
+        return
+      }
+      resolve(result)
+    }, 'image/jpeg', quality)
+  })
+}
+
+function assertWatermarkLength(text: string, maxChars: number): void {
+  if (text.length > maxChars) {
+    throw new Error(`Watermark text must be at most ${maxChars} characters.`)
+  }
 }
 
 export async function writeShareImage(options: WriteShareImageOptions): Promise<Blob> {
-  const qrSize = options.qrSize ?? 420
   const padding = options.padding ?? 24
   const backgroundColor = options.backgroundColor ?? '#ffffff'
   const jpegQuality = options.jpegQuality ?? 0.95
+  const watermarkPassword = options.watermarkPassword ?? DEFAULT_WATERMARK_PASSWORD
+  const watermarkMaxChars = options.watermarkMaxChars ?? DEFAULT_WATERMARK_MAX_CHARS
+
+  assertWatermarkLength(options.watermarkText, watermarkMaxChars)
 
   const portraitImage = options.portraitFile ? await readImage(options.portraitFile) : null
-
-  // Content width rules:
-  // 1) QR must be at least qrSize.
-  // 2) If portrait is narrower than qrSize, upscale portrait to qrSize.
-  // 3) If portrait is wider than QR target, upscale QR to portrait width.
-  const targetContentWidth = portraitImage
-    ? Math.max(qrSize, portraitImage.width)
-    : qrSize
-
-  const qrDataUrl = await QRCode.toDataURL(options.qrText, {
-    errorCorrectionLevel: 'M',
-    margin: 1,
-    width: targetContentWidth
-  })
-
-  const qrImage = await readDataUrlImage(qrDataUrl)
-
-  const portraitRatio = portraitImage ? targetContentWidth / portraitImage.width : 1
-  const portraitDrawWidth = portraitImage ? targetContentWidth : 0
-  const portraitDrawHeight = portraitImage ? Math.round(portraitImage.height * portraitRatio) : 0
-
   const infoRows = !portraitImage ? (options.defaultInfoRows ?? []) : []
+
+  const contentWidth = portraitImage ? portraitImage.width : 960
+  const portraitDrawWidth = portraitImage ? portraitImage.width : 0
+  const portraitDrawHeight = portraitImage ? portraitImage.height : 0
   const infoCardHeight = infoRows.length > 0 ? measureInfoCardHeight(infoRows, 28) : 0
   const infoGap = infoRows.length > 0 ? 20 : 0
-
-  const contentWidth = Math.max(qrImage.width, portraitDrawWidth, targetContentWidth)
   const canvasWidth = contentWidth + padding * 2
   const gap = portraitImage ? 20 : 0
-  const canvasHeight = padding * 2 + portraitDrawHeight + gap + infoCardHeight + infoGap + qrImage.height
+  const footerHeight = 60
+  const canvasHeight = padding * 2 + portraitDrawHeight + gap + infoCardHeight + infoGap + footerHeight
 
   const canvas = document.createElement('canvas')
   canvas.width = canvasWidth
@@ -152,23 +152,40 @@ export async function writeShareImage(options: WriteShareImageOptions): Promise<
     y += layout.height + infoGap
   }
 
-  const qrX = Math.floor((canvasWidth - qrImage.width) / 2)
-  ctx.drawImage(qrImage, qrX, y, qrImage.width, qrImage.height)
+  ctx.fillStyle = '#111827'
+  ctx.font = '600 22px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial'
+  ctx.fillText('Cat Share Image', padding, y + 28)
+  ctx.fillStyle = '#6b7280'
+  ctx.font = '400 14px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial'
+  ctx.fillText('Contains blind watermark with short URL for import.', padding, y + 50)
 
-  const blob = await new Promise<Blob>((resolve, reject) => {
-    canvas.toBlob((result) => {
-      if (!result) {
-        reject(new Error('Failed to encode composed share image'))
-        return
-      }
-      resolve(result)
-    }, 'image/jpeg', jpegQuality)
-  })
+  const sourcePixels = ctx.getImageData(0, 0, canvasWidth, canvasHeight)
+  const embedded = embedShortTextBlindWatermark(
+    {
+      width: canvasWidth,
+      height: canvasHeight,
+      data: sourcePixels.data,
+    } as ImageDataLike,
+    options.watermarkText,
+    {
+      password: watermarkPassword,
+      maxChars: watermarkMaxChars,
+    }
+  )
 
-  return blob
+  const embeddedPixels = new ImageData(new Uint8ClampedArray(embedded.data), canvasWidth, canvasHeight)
+  ctx.putImageData(embeddedPixels, 0, 0)
+
+  return await encodeCanvasAsJpeg(canvas, jpegQuality)
 }
 
-export async function readShareImage(fileOrBlob: File | Blob): Promise<string | null> {
+export async function readShareImageWatermark(
+  fileOrBlob: File | Blob,
+  options: { watermarkPassword?: number, watermarkMaxChars?: number } = {}
+): Promise<string | null> {
+  const watermarkPassword = options.watermarkPassword ?? DEFAULT_WATERMARK_PASSWORD
+  const watermarkMaxChars = options.watermarkMaxChars ?? DEFAULT_WATERMARK_MAX_CHARS
+
   const img = await readImage(fileOrBlob)
   const canvas = document.createElement('canvas')
   canvas.width = img.width
@@ -177,13 +194,23 @@ export async function readShareImage(fileOrBlob: File | Blob): Promise<string | 
   if (!ctx) throw new Error('Could not initialize canvas context')
 
   ctx.drawImage(img, 0, 0)
+  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
 
-  const full = ctx.getImageData(0, 0, canvas.width, canvas.height)
-  const decodedFull = jsQR(full.data, full.width, full.height)
-  if (decodedFull?.data) return decodedFull.data
+  try {
+    const extracted = extractShortTextBlindWatermark(
+      {
+        width: canvas.width,
+        height: canvas.height,
+        data: imageData.data,
+      },
+      {
+        password: watermarkPassword,
+        maxChars: watermarkMaxChars,
+      }
+    ).trim()
 
-  const cropY = Math.floor(canvas.height * 0.5)
-  const cropped = ctx.getImageData(0, cropY, canvas.width, canvas.height - cropY)
-  const decodedBottom = jsQR(cropped.data, cropped.width, cropped.height)
-  return decodedBottom?.data ?? null
+    return extracted.length > 0 ? extracted : null
+  } catch {
+    return null
+  }
 }

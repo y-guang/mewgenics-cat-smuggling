@@ -1,6 +1,6 @@
 const BLOCK_SIZE = 4
 const DEFAULT_MAX_CHARS = 12
-const LENGTH_BITS = 4
+const LENGTH_BITS = 8
 const ASCII_BITS = 7
 const PRINTABLE_ASCII_MIN = 32
 const PRINTABLE_ASCII_MAX = 126
@@ -68,8 +68,8 @@ export function extractShortTextBlindWatermark(
 
 function resolveOptions(options: BlindWatermarkOptions) {
   const maxChars = options.maxChars ?? DEFAULT_MAX_CHARS
-  if (!Number.isInteger(maxChars) || maxChars < 1 || maxChars > 12) {
-    throw new Error('maxChars must be an integer between 1 and 12')
+  if (!Number.isInteger(maxChars) || maxChars < 1 || maxChars > 255) {
+    throw new Error('maxChars must be an integer between 1 and 255')
   }
 
   return {

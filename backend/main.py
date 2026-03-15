@@ -7,6 +7,7 @@ from pathlib import Path
 
 import aiosqlite
 from fastapi import Depends, FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 APP_DIR = Path(__file__).resolve().parent
@@ -116,6 +117,18 @@ async def lifespan(_: FastAPI):
 
 
 app = FastAPI(title="KV Short URL API", version="1.0.0", lifespan=lifespan)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[],
+    allow_origin_regex=(
+        r"^https://[A-Za-z0-9-]+\.github\.io$"
+        r"|^https?://localhost(?::\d+)?$"
+        r"|^https?://127\.0\.0\.1(?::\d+)?$"
+    ),
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 @app.get("/health")
