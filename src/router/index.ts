@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import HomeView from '../views/HomeView.vue'
-import ImportView from '../components/ImportView.vue'
+import ImportLoadView from '../views/import/ImportLoadView.vue'
+import ImportApplyView from '../views/import/ImportApplyView.vue'
 import ExportUploadView from '../views/export/ExportUploadView.vue'
 import ExportSelectView from '../views/export/ExportSelectView.vue'
 import ExportDetailsView from '../views/export/ExportDetailsView.vue'
@@ -15,8 +16,13 @@ export const router = createRouter({
     },
     {
       path: '/import',
-      name: 'import',
-      component: ImportView
+      name: 'import-load',
+      component: ImportLoadView
+    },
+    {
+      path: '/import/apply',
+      name: 'import-apply',
+      component: ImportApplyView
     },
     {
       path: '/export',
