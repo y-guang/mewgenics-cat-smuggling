@@ -1,10 +1,13 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import vueFilePond from 'vue-filepond'
 import 'filepond/dist/filepond.min.css'
+import { extractCatByKey } from '../../lib/save'
 import { useExportFlowStore } from '../../stores/exportFlow'
+import { buildCatShareText } from '../../utils/qrPayload'
+import { writeShareImage } from '../../utils/shareQrImage'
 
 interface FilePondLikeItem {
   file?: File
@@ -23,13 +26,20 @@ if (!selectedCat.value) {
 }
 
 const portraitFiles = ref<File[]>(portraitFile.value ? [portraitFile.value] : [])
+const showCatInfo = ref(false)
+const isGeneratingShare = ref(false)
+const shareError = ref<string | null>(null)
+const shareImageUrl = ref<string | null>(null)
+const shareImageFileName = ref('cat-share.png')
 
 function chooseAnotherCat(): void {
+  showCatInfo.value = false
   store.resetSelection()
   router.push('/export/select')
 }
 
 function changeSave(): void {
+  showCatInfo.value = false
   store.resetAll()
   router.push('/export/upload')
 }
@@ -38,6 +48,7 @@ function handlePortraitUpdate(items: FilePondLikeItem[]): void {
   const file = items[0]?.file ?? null
   store.setPortrait(file)
   portraitFiles.value = file ? [file] : []
+  void generateShareImage()
 }
 
 const portraitName = computed(() => portraitFile.value?.name ?? null)
@@ -78,6 +89,68 @@ const levelBonusStats = computed(() => {
     { key: 'LCK', value: s.luck }
   ]
 })
+
+const summaryPairs = computed(() => [
+  { label: 'Name', value: selectedCat.value?.name ?? '(unnamed)' },
+  { label: 'DB Key', value: selectedCat.value ? String(selectedCat.value.key) : '—' },
+  { label: 'ID64', value: selectedCat.value?.id64 ?? '—' },
+  { label: 'Age', value: `${selectedCat.value?.ageDays ?? '—'} days` }
+])
+
+function cleanupShareUrl(): void {
+  if (!shareImageUrl.value) return
+  URL.revokeObjectURL(shareImageUrl.value)
+  shareImageUrl.value = null
+}
+
+async function generateShareImage(): Promise<void> {
+  if (!sourceSaveFile.value || !selectedCat.value) return
+
+  isGeneratingShare.value = true
+  shareError.value = null
+
+  try {
+    const saveBytes = new Uint8Array(await sourceSaveFile.value.arrayBuffer())
+    const extracted = await extractCatByKey(saveBytes, selectedCat.value.key)
+
+    const qrText = buildCatShareText({
+      v: 1,
+      type: 'mewgenics-cat',
+      id64: extracted.id64,
+      key: extracted.sourceKey,
+      name: extracted.name,
+      wrappedBlob: extracted.wrappedBlob
+    })
+
+    const shareBlob = await writeShareImage({
+      qrText,
+      portraitFile: portraitFile.value,
+      qrSize: 420,
+      padding: 24
+    })
+
+    cleanupShareUrl()
+    shareImageUrl.value = URL.createObjectURL(shareBlob)
+
+    const safeName = (selectedCat.value.name ?? `cat-${selectedCat.value.key}`)
+      .replace(/[^A-Za-z0-9_-]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+    shareImageFileName.value = `${safeName || 'cat'}-share.png`
+  } catch (error) {
+    cleanupShareUrl()
+    shareError.value = error instanceof Error ? error.message : String(error)
+  } finally {
+    isGeneratingShare.value = false
+  }
+}
+
+onMounted(() => {
+  void generateShareImage()
+})
+
+onBeforeUnmount(() => {
+  cleanupShareUrl()
+})
 </script>
 
 <template>
@@ -105,7 +178,24 @@ const levelBonusStats = computed(() => {
       </div>
     </div>
 
-    <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+    <div class="rounded-lg border border-neutral-700 bg-neutral-700/20 px-4 py-3">
+      <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div v-for="item in summaryPairs" :key="item.label" class="space-y-1">
+          <div class="text-xs uppercase tracking-wide text-neutral-500">{{ item.label }}</div>
+          <div class="text-sm text-neutral-100 break-all">{{ item.value }}</div>
+        </div>
+      </div>
+
+      <button
+        class="mt-3 w-full flex items-center justify-center gap-2 text-neutral-500 hover:text-neutral-300 transition-colors"
+        @click="showCatInfo = !showCatInfo"
+      >
+        <span class="text-xs">More details</span>
+        <span class="transition-transform duration-200" :class="showCatInfo ? 'rotate-180' : ''">⌄</span>
+      </button>
+    </div>
+
+    <div v-if="showCatInfo" class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
       <div class="rounded-lg border border-neutral-700 bg-neutral-700/30 px-4 py-3">
         <div class="text-xs uppercase tracking-wide text-neutral-500">Name</div>
         <div class="mt-1 text-sm text-neutral-100">{{ selectedCat.name ?? '(unnamed)' }}</div>
@@ -160,7 +250,7 @@ const levelBonusStats = computed(() => {
       </div>
     </div>
 
-    <div class="grid gap-3 lg:grid-cols-2">
+    <div v-if="showCatInfo" class="grid gap-3 lg:grid-cols-2">
       <div class="rounded-lg border border-neutral-700 bg-neutral-700/30 px-4 py-3 space-y-2">
         <div class="text-xs uppercase tracking-wide text-neutral-500">Base Stats</div>
         <div v-if="baseStats" class="grid grid-cols-4 gap-2">
@@ -184,7 +274,7 @@ const levelBonusStats = computed(() => {
       </div>
     </div>
 
-    <div v-if="selectedCat.issues.length > 0" class="rounded-lg border border-neutral-700 bg-neutral-700/30 px-4 py-3 space-y-2">
+    <div v-if="showCatInfo && selectedCat.issues.length > 0" class="rounded-lg border border-neutral-700 bg-neutral-700/30 px-4 py-3 space-y-2">
       <div class="text-xs uppercase tracking-wide text-neutral-500">Issue Details</div>
       <ul class="space-y-1 text-sm text-neutral-200">
         <li v-for="(issue, index) in selectedCat.issues" :key="`${issue.severity}-${index}`">
@@ -196,7 +286,7 @@ const levelBonusStats = computed(() => {
 
     <div class="space-y-2">
       <h3 class="text-sm font-medium text-neutral-200">Portrait image</h3>
-      <p class="text-sm text-neutral-400">Upload an image for this export package. Export logic will use it later.</p>
+      <p class="text-sm text-neutral-400">Optional. If provided, portrait is placed above the QR in one shareable image.</p>
       <p v-if="portraitName" class="text-xs text-neutral-500">Selected image: {{ portraitName }}</p>
     </div>
 
@@ -209,5 +299,40 @@ const levelBonusStats = computed(() => {
       label-idle="<span class='filepond--label-action'>Drop portrait image here</span><br>or click to browse"
       @updatefiles="handlePortraitUpdate"
     />
+
+    <div class="space-y-3 rounded-lg border border-neutral-700 bg-neutral-700/20 px-4 py-4">
+      <div class="flex items-center justify-between gap-3 flex-wrap">
+        <div>
+          <h3 class="text-sm font-medium text-neutral-200">Share image</h3>
+          <p class="text-sm text-neutral-400">QR code is always included. Portrait is optional.</p>
+        </div>
+        <button
+          class="rounded border border-neutral-600 bg-neutral-700 text-neutral-100 px-3 py-1.5 text-sm hover:bg-neutral-600 transition-colors disabled:opacity-50"
+          :disabled="isGeneratingShare"
+          @click="generateShareImage"
+        >
+          {{ isGeneratingShare ? 'Generating...' : 'Regenerate QR image' }}
+        </button>
+      </div>
+
+      <p v-if="shareError" class="text-sm text-red-400 bg-red-950 border border-red-800 rounded p-2">
+        {{ shareError }}
+      </p>
+
+      <div v-if="shareImageUrl" class="space-y-3">
+        <img
+          :src="shareImageUrl"
+          alt="Cat share image with QR"
+          class="w-full max-w-xl rounded border border-neutral-700 bg-neutral-900"
+        >
+        <a
+          :href="shareImageUrl"
+          :download="shareImageFileName"
+          class="inline-flex rounded border border-neutral-600 bg-neutral-700 text-neutral-100 px-3 py-1.5 text-sm hover:bg-neutral-600 transition-colors"
+        >
+          Download share image
+        </a>
+      </div>
+    </div>
   </section>
 </template>
