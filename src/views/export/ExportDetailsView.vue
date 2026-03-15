@@ -32,18 +32,6 @@ const shareError = ref<string | null>(null)
 const shareImageUrl = ref<string | null>(null)
 const shareImageFileName = ref('cat-share.jpg')
 
-function chooseAnotherCat(): void {
-  showCatInfo.value = false
-  store.resetSelection()
-  router.push('/export/select')
-}
-
-function changeSave(): void {
-  showCatInfo.value = false
-  store.resetAll()
-  router.push('/export/upload')
-}
-
 function handlePortraitUpdate(items: FilePondLikeItem[]): void {
   const file = items[0]?.file ?? null
   store.setPortrait(file)
@@ -162,20 +150,6 @@ onBeforeUnmount(() => {
         <p class="text-sm text-neutral-400">
           Prepare export metadata for <span class="text-neutral-200">{{ selectedCat.name ?? '(unnamed)' }}</span>.
         </p>
-      </div>
-      <div class="flex items-center gap-3">
-        <button
-          class="rounded border border-neutral-600 bg-neutral-700 text-neutral-100 px-3 py-1.5 text-sm hover:bg-neutral-600 transition-colors"
-          @click="chooseAnotherCat"
-        >
-          Choose another cat
-        </button>
-        <button
-          class="rounded border border-neutral-600 bg-neutral-700 text-neutral-100 px-3 py-1.5 text-sm hover:bg-neutral-600 transition-colors"
-          @click="changeSave"
-        >
-          Change save
-        </button>
       </div>
     </div>
 

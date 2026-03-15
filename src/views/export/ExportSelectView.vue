@@ -44,11 +44,6 @@ function chooseCat(cat: CatInfoRecord): void {
   router.push('/export/details')
 }
 
-function changeSave(): void {
-  store.resetAll()
-  router.push('/export/upload')
-}
-
 const colHelper = createColumnHelper<CatInfoRecord>()
 
 const columns = [
@@ -205,12 +200,6 @@ const loadedCount = computed(() => cats.value.length)
           placeholder="Search by name…"
           class="rounded border border-neutral-600 bg-neutral-700 text-neutral-100 placeholder-neutral-500 px-3 py-1.5 text-sm w-52 focus:outline-none focus:ring-1 focus:ring-neutral-400"
         />
-        <button
-          class="rounded border border-neutral-600 bg-neutral-700 text-neutral-100 px-3 py-1.5 text-sm hover:bg-neutral-600 transition-colors"
-          @click="changeSave"
-        >
-          Change save
-        </button>
       </div>
     </div>
 
