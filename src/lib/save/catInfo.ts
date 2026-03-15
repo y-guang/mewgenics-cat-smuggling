@@ -469,23 +469,27 @@ export async function readCatsInfo(saveBytes: ArrayBuffer | Uint8Array): Promise
   const db = await openDatabase(toDatabaseBuffer(saveBytes))
 
   try {
-    const currentDay = readCurrentDay(db)
-    const houseMap = getHouseMap(db)
-    const rows = queryAllRows(db, 'SELECT key, data FROM cats ORDER BY key')
-
-    const cats: CatInfoRecord[] = []
-    for (const row of rows) {
-      if (row.length < 2) continue
-      const keyValue = row[0]
-      const dataValue = row[1]
-      if (keyValue === undefined || dataValue === undefined) continue
-
-      const record = await parseCatRecordAsync(keyValue, dataValue, currentDay, houseMap)
-      if (record) cats.push(record)
-    }
-
-    return { currentDay, cats }
+    return await readCatsInfoFromDatabase(db)
   } finally {
     db.close()
   }
+}
+
+export async function readCatsInfoFromDatabase(db: Database): Promise<CatInfoResult> {
+  const currentDay = readCurrentDay(db)
+  const houseMap = getHouseMap(db)
+  const rows = queryAllRows(db, 'SELECT key, data FROM cats ORDER BY key')
+
+  const cats: CatInfoRecord[] = []
+  for (const row of rows) {
+    if (row.length < 2) continue
+    const keyValue = row[0]
+    const dataValue = row[1]
+    if (keyValue === undefined || dataValue === undefined) continue
+
+    const record = await parseCatRecordAsync(keyValue, dataValue, currentDay, houseMap)
+    if (record) cats.push(record)
+  }
+
+  return { currentDay, cats }
 }

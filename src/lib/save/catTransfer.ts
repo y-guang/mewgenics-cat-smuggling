@@ -27,8 +27,6 @@ export interface ExtractedCatPayload {
 }
 
 export interface ImportCatOptions {
-  targetKey?: number
-  allowDuplicateId64?: boolean
   housePlacement?: HousePlacement | 'preserve' | 'safe'
 }
 
@@ -244,6 +242,7 @@ export async function extractCatById64(
     const houseEntries = loadHouseEntries(db)
     const houseByKey = new Map(houseEntries.map((entry) => [entry.key, entry]))
     const rows = queryAllRows(db, 'SELECT key, data FROM cats ORDER BY key')
+    const matches: ExtractedCatPayload[] = []
 
     for (const row of rows) {
       const key = row[0]
@@ -257,19 +256,55 @@ export async function extractCatById64(
         continue
       }
 
-      return {
+      matches.push({
         id64: identity.id64.toString(),
         sourceKey: key,
         name: identity.name,
         wrappedBlob: cloneBytes(data),
         originalHouseEntry: houseByKey.get(key) ?? null
-      }
+      })
+    }
+
+    if (matches.length > 1) {
+      throw new Error(`Cat id64 ${targetId.toString()} is duplicated in the save (${matches.length} rows)`)
+    }
+
+    if (matches.length === 1) {
+      return matches[0]!
     }
   } finally {
     db.close()
   }
 
   throw new Error(`Cat id64 ${targetId.toString()} was not found in the save`)
+}
+
+export async function extractCatByKey(
+  saveBytes: ArrayBuffer | Uint8Array,
+  key: number
+): Promise<ExtractedCatPayload> {
+  const db = await openDatabase(toDatabaseBuffer(saveBytes))
+
+  try {
+    const houseEntries = loadHouseEntries(db)
+    const houseByKey = new Map(houseEntries.map((entry) => [entry.key, entry]))
+    const blob = queryBlob(db, 'SELECT data FROM cats WHERE key=?', [key])
+
+    if (!blob) {
+      throw new Error(`Cat key ${key} was not found in the save`)
+    }
+
+    const identity = await readCatIdentity(blob)
+    return {
+      id64: identity.id64.toString(),
+      sourceKey: key,
+      name: identity.name,
+      wrappedBlob: cloneBytes(blob),
+      originalHouseEntry: houseByKey.get(key) ?? null
+    }
+  } finally {
+    db.close()
+  }
 }
 
 export async function importCatIntoSave(
@@ -292,7 +327,7 @@ export async function importCatIntoSave(
 
       existingKeys.push(key)
 
-      if (!options.allowDuplicateId64 && data instanceof Uint8Array) {
+      if (data instanceof Uint8Array) {
         const identity = await readCatIdentity(data)
         if (identity.id64.toString() === extracted.id64) {
           throw new Error(`Target save already contains cat id64 ${extracted.id64} at key ${key}`)
@@ -300,10 +335,7 @@ export async function importCatIntoSave(
       }
     }
 
-    const importedKey = options.targetKey ?? nextCatKey(existingKeys)
-    if (existingKeys.includes(importedKey)) {
-      throw new Error(`Target cat key ${importedKey} already exists in the save`)
-    }
+    const importedKey = nextCatKey(existingKeys)
 
     const houseEntries = loadHouseEntries(db)
     const houseEntry = resolvePlacement(importedKey, extracted, options.housePlacement)

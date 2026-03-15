@@ -7,6 +7,13 @@ let sqlPromise: Promise<SqlJsStatic> | null = null
 async function initSql(): Promise<SqlJsStatic> {
   if (!sqlPromise) {
     sqlPromise = (async () => {
+      const isNode = typeof window === 'undefined' && typeof process !== 'undefined' && !!process.versions?.node
+      if (isNode) {
+        const path = await import('node:path')
+        const wasmPath = path.resolve(process.cwd(), 'node_modules', 'sql.js', 'dist', 'sql-wasm.wasm')
+        return initSqlJs({ locateFile: () => wasmPath })
+      }
+
       const response = await fetch(sqlWasmUrl)
       if (!response.ok) {
         throw new Error(`Failed to fetch sql-wasm binary from ${sqlWasmUrl}: ${response.status}`)
