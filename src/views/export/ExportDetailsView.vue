@@ -36,7 +36,6 @@ if (!selectedCat.value) {
 const portraitFiles = ref<File[]>(portraitFile.value ? [portraitFile.value] : [])
 const importUrlBase = ref(new URL('#/import', window.location.href).toString())
 const longShareUrl = ref<string | null>(null)
-const shortShareUrl = ref<string | null>(null)
 const shortShareKey = ref<string | null>(null)
 const isGeneratingLongUrl = ref(false)
 const isCreatingShortUrl = ref(false)
@@ -61,6 +60,12 @@ function handlePortraitUpdate(items: FilePondLikeItem[]): void {
 }
 
 const portraitName = computed(() => portraitFile.value?.name ?? null)
+const shortShareUrl = computed(() => {
+  if (!shortShareKey.value) return null
+  const url = new URL(importUrlBase.value)
+  url.searchParams.set('share', shortShareKey.value)
+  return url.toString()
+})
 
 function cleanupShareUrl(): void {
   if (!shareImageUrl.value) return
@@ -127,7 +132,6 @@ async function createShortUrl(): Promise<void> {
 
   try {
     const created = await createShortShareUrl(SHORT_URL_API_BASE, longShareUrl.value)
-    shortShareUrl.value = created.shortUrl
     shortShareKey.value = created.key
     await generateShareImage(created.key)
   } catch (error) {
@@ -140,7 +144,6 @@ async function createShortUrl(): Promise<void> {
 async function refreshShareArtifacts(): Promise<void> {
   const runId = ++refreshRunId.value
 
-  shortShareUrl.value = null
   shortShareKey.value = null
   shortUrlError.value = null
   shareError.value = null
