@@ -3,7 +3,7 @@ const envShortApiBaseDev = import.meta.env.VITE_SHORT_URL_API_BASE_DEV as string
 const envShortApiBaseProd = import.meta.env.VITE_SHORT_URL_API_BASE_PROD as string | undefined
 
 const DEFAULT_DEV_SHORT_URL_API_BASE = 'http://127.0.0.1:8787'
-const DEFAULT_PROD_SHORT_URL_API_BASE = 'https://example.com'
+const DEFAULT_PROD_SHORT_URL_API_BASE = 'https://mewgenics-cat-smuggling-api.yangguang.dev'
 
 function normalize(value: string | undefined): string | null {
   if (!value) return null
