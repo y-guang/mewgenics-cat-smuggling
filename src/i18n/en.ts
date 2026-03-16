@@ -89,6 +89,7 @@ export default {
       donated: 'Donated',
       dead: 'Dead',
       importedMsg: 'Imported as key {key} (id64 {id64}).',
+      starPrompt: 'If this tool helped you, please click me and give a free star on GitHub.🐱',
       exportBtn: 'Export Updated Save',
       exporting: 'Exporting...',
     },

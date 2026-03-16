@@ -29,6 +29,7 @@ const isLoading = ref(false)
 const actionError = ref<string | null>(null)
 const isImporting = ref(false)
 const importedResult = ref<{ importedKey: number, importedId64: string } | null>(null)
+const repoUrl = 'https://github.com/y-guang/mewgenics-cat-smuggling'
 const parsedCatInfo = ref<ImportCatBlobInfo | null>(null)
 const editInfo = ref<ImportCatEditInfo>({
   ageDays: 2,
@@ -210,6 +211,17 @@ onMounted(() => {
 
     <p v-if="importedResult" class="text-sm text-green-300 bg-green-950 border border-green-800 rounded p-2">
       {{ t('import.edit.importedMsg', { key: importedResult.importedKey, id64: importedResult.importedId64 }) }}
+    </p>
+
+    <p v-if="importedResult" class="text-sm text-amber-200 bg-amber-950 border border-amber-800 rounded p-2">
+      <a
+        :href="repoUrl"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="underline decoration-amber-400 underline-offset-2 hover:text-amber-100"
+      >
+        {{ t('import.edit.starPrompt') }}
+      </a>
     </p>
 
     <div class="flex items-center justify-end gap-3 pt-2 flex-wrap">

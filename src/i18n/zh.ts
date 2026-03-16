@@ -89,6 +89,7 @@ export default {
       donated: '已捐赠',
       dead: '已死亡',
       importedMsg: '已导入，Key 为 {key}（id64 {id64}）。',
+      starPrompt: '如果这个工具对你有帮助，请点我，在 GitHub 赐我星标，球球了。🐱',
       exportBtn: '导出更新后的存档',
       exporting: '正在导出...',
     },
