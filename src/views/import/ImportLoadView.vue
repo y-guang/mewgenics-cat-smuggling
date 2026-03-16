@@ -14,7 +14,7 @@ const FilePond = vueFilePond()
 const route = useRoute()
 const router = useRouter()
 const store = useImportFlowStore()
-const { decodedCat, carrierImageFile, isDecoding, decodeError, targetSaveFile } = storeToRefs(store)
+const { decodedCat, carrierImageFile, isDecoding, decodeError } = storeToRefs(store)
 
 const carrierImageFiles = ref<File[]>(carrierImageFile.value ? [carrierImageFile.value] : [])
 
