@@ -41,6 +41,12 @@ async function onCarrierImageChange(items: FilePondLikeItem[]): Promise<void> {
 }
 
 onMounted(async () => {
+  if (!hasRoutePayload.value) {
+    store.resetAll()
+    carrierImageFiles.value = []
+    return
+  }
+
   const ok = await store.loadFromRouteQuery(route.query, window.location.href)
   if (ok) {
     await moveToApplyIfReady()

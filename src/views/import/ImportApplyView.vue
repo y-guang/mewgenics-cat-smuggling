@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import vueFilePond from 'vue-filepond'
 import 'filepond/dist/filepond.min.css'
 import CatDetailCard from '../../components/CatDetailCard.vue'
+import { readCatsInfo } from '../../lib/save'
 import { useImportFlowStore } from '../../stores/importFlow'
 
 interface FilePondLikeItem {
@@ -14,14 +15,19 @@ interface FilePondLikeItem {
 const FilePond = vueFilePond()
 const router = useRouter()
 const store = useImportFlowStore()
-const { decodedCat, targetSaveFile } = storeToRefs(store)
+const { decodedCat } = storeToRefs(store)
 
 if (!decodedCat.value) {
   router.replace('/import')
 }
 
-const savePondFiles = ref<File[]>(targetSaveFile.value ? [targetSaveFile.value] : [])
+const savePondFiles = ref<File[]>([])
 const selectError = ref<string | null>(null)
+const isLoading = ref(false)
+
+onMounted(() => {
+  store.clearTargetSave()
+})
 
 const importCatInfo = computed(() => {
   if (!decodedCat.value) return null
@@ -42,13 +48,33 @@ const importCatInfo = computed(() => {
   }
 })
 
-function onSaveFileChange(items: FilePondLikeItem[]): void {
+async function onSaveFileChange(items: FilePondLikeItem[]): Promise<void> {
   const file = items[0]?.file ?? null
-  store.setTargetSaveFile(file)
-  savePondFiles.value = file ? [file] : []
   selectError.value = null
-  if (file) {
+  if (!file) {
+    store.setTargetSaveFile(null)
+    savePondFiles.value = []
+    return
+  }
+
+  if (!file.name.toLowerCase().endsWith('.sav')) {
+    selectError.value = 'Please select a .sav file.'
+    savePondFiles.value = []
+    return
+  }
+
+  isLoading.value = true
+  try {
+    const bytes = new Uint8Array(await file.arrayBuffer())
+    await readCatsInfo(bytes)
+    store.setTargetSaveFile(file)
+    savePondFiles.value = [file]
     router.push('/import/edit')
+  } catch (error) {
+    selectError.value = error instanceof Error ? error.message : 'Failed to read save file.'
+    savePondFiles.value = []
+  } finally {
+    isLoading.value = false
   }
 }
 </script>
@@ -74,6 +100,10 @@ function onSaveFileChange(items: FilePondLikeItem[]): void {
         label-idle="<span class='filepond--label-action'>Drop target save here</span><br>or click to browse"
         @updatefiles="onSaveFileChange"
       />
+    </div>
+
+    <div v-if="isLoading" class="rounded-lg border border-neutral-700 bg-neutral-700/20 px-4 py-3 text-sm text-neutral-300">
+      Validating save file...
     </div>
 
     <p v-if="selectError" class="text-sm text-red-400 bg-red-950 border border-red-800 rounded p-2">

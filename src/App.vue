@@ -19,6 +19,23 @@ const crumbs = computed<Crumb[]>(() => {
     return [{ label: 'Home', to: '/' }, { label: 'Import' }]
   }
 
+  if (route.path === '/import/apply') {
+    return [
+      { label: 'Home', to: '/' },
+      { label: 'Import', to: '/import' },
+      { label: 'Choose Target Save' }
+    ]
+  }
+
+  if (route.path === '/import/edit') {
+    return [
+      { label: 'Home', to: '/' },
+      { label: 'Import', to: '/import' },
+      { label: 'Choose Target Save', to: '/import/apply' },
+      { label: 'Edit & Export' }
+    ]
+  }
+
   if (route.path === '/export/upload') {
     return [{ label: 'Home', to: '/' }, { label: 'Export' }, { label: 'Upload Save' }]
   }
