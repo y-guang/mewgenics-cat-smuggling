@@ -85,7 +85,7 @@ async function onSaveFileChange(items: FilePondLikeItem[]): Promise<void> {
   <section v-if="decodedCat" class="bg-neutral-800 border border-neutral-700 rounded-lg p-5 space-y-5">
     <header class="space-y-1">
       <h2 class="text-base font-medium text-neutral-100">Choose target save</h2>
-      <p class="text-sm text-neutral-400">Select the destination save file. You will edit age/status in the next step.</p>
+      <p class="text-sm text-neutral-400">Select the destination save file. You will get a new cat in your save file! Don't forget to back up your original save file.</p>
     </header>
 
     <CatDetailCard v-if="importCatInfo" :cat-info="importCatInfo" />
