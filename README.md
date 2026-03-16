@@ -118,6 +118,7 @@ The blind watermark utility is adapted from:
 
 - [blind_watermark](https://github.com/guofei9987/blind_watermark)
 
-## Status
+## Known Issue
 
-The new cat doesn't have its own family tree. But their children are fine.
+- The new cat doesn't have its own family tree. But their children are fine.
+- The death caused by aging it separately from the age configuration. Even if you set the age to 0, it will still die as the original cat's age increases. But I cannot find a field in the save file corresponding to the aging related health decrease.
