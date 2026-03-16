@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { storeToRefs } from 'pinia'
 import CatDetailCard from '../../components/CatDetailCard.vue'
 import { importCatIntoSave, readCatsInfo } from '../../lib/save'
@@ -13,6 +14,7 @@ import {
 import { useImportFlowStore } from '../../stores/importFlow'
 
 const router = useRouter()
+const { t } = useI18n()
 const store = useImportFlowStore()
 const { decodedCat, targetSaveFile } = storeToRefs(store)
 
@@ -147,12 +149,12 @@ onMounted(() => {
 <template>
   <section v-if="decodedCat && targetSaveFile" class="bg-neutral-800 border border-neutral-700 rounded-lg p-5 space-y-5">
     <header class="space-y-1">
-      <h2 class="text-base font-medium text-neutral-100">Edit and export</h2>
-      <p class="text-sm text-neutral-400">Review details, edit age/status, then export the updated save.</p>
+      <h2 class="text-base font-medium text-neutral-100">{{ t('import.edit.title') }}</h2>
+      <p class="text-sm text-neutral-400">{{ t('import.edit.desc') }}</p>
     </header>
 
     <div v-if="isLoading" class="rounded-lg border border-neutral-700 bg-neutral-700/20 px-4 py-3 text-sm text-neutral-300">
-      Reading cat details...
+      {{ t('import.edit.readingDetails') }}
     </div>
 
     <CatDetailCard v-if="importCatInfo" :cat-info="importCatInfo" />
@@ -160,7 +162,7 @@ onMounted(() => {
     <div class="rounded-lg border border-neutral-700 bg-neutral-700/20 px-4 py-3 space-y-3">
       <div class="grid gap-3 md:grid-cols-2">
         <label class="space-y-2">
-          <div class="text-xs uppercase tracking-wide text-neutral-500">Age (days)</div>
+          <div class="text-xs uppercase tracking-wide text-neutral-500">{{ t('import.edit.ageDays') }}</div>
           <input
             v-model.number="editInfo.ageDays"
             type="number"
@@ -171,7 +173,7 @@ onMounted(() => {
         </label>
 
         <div class="space-y-2">
-          <div class="text-xs uppercase tracking-wide text-neutral-500">Status</div>
+          <div class="text-xs uppercase tracking-wide text-neutral-500">{{ t('import.edit.status') }}</div>
           <div class="flex flex-wrap gap-2">
             <button
               type="button"
@@ -179,7 +181,7 @@ onMounted(() => {
               :class="editInfo.flags.retired ? 'border-neutral-300 bg-neutral-200 text-neutral-900' : 'border-neutral-600 bg-neutral-800 text-neutral-200 hover:bg-neutral-700'"
               @click="toggleStatus('retired')"
             >
-              Retired
+              {{ t('import.edit.retired') }}
             </button>
             <button
               type="button"
@@ -187,7 +189,7 @@ onMounted(() => {
               :class="editInfo.flags.donated ? 'border-neutral-300 bg-neutral-200 text-neutral-900' : 'border-neutral-600 bg-neutral-800 text-neutral-200 hover:bg-neutral-700'"
               @click="toggleStatus('donated')"
             >
-              Donated
+              {{ t('import.edit.donated') }}
             </button>
             <button
               type="button"
@@ -195,7 +197,7 @@ onMounted(() => {
               :class="editInfo.flags.dead ? 'border-neutral-300 bg-neutral-200 text-neutral-900' : 'border-neutral-600 bg-neutral-800 text-neutral-200 hover:bg-neutral-700'"
               @click="toggleStatus('dead')"
             >
-              Dead
+              {{ t('import.edit.dead') }}
             </button>
           </div>
         </div>
@@ -207,7 +209,7 @@ onMounted(() => {
     </p>
 
     <p v-if="importedResult" class="text-sm text-green-300 bg-green-950 border border-green-800 rounded p-2">
-      Imported as key {{ importedResult.importedKey }} (id64 {{ importedResult.importedId64 }}).
+      {{ t('import.edit.importedMsg', { key: importedResult.importedKey, id64: importedResult.importedId64 }) }}
     </p>
 
     <div class="flex items-center justify-end gap-3 pt-2 flex-wrap">
@@ -216,7 +218,7 @@ onMounted(() => {
         :disabled="!canRunImport"
         @click="exportImportedSave"
       >
-        {{ isImporting ? 'Exporting...' : 'Export Updated Save' }}
+        {{ isImporting ? t('import.edit.exporting') : t('import.edit.exportBtn') }}
       </button>
     </div>
   </section>

@@ -56,7 +56,7 @@ function assertWatermarkLength(text: string, maxChars: number): void {
 function crc32(bytes: Uint8Array): number {
   let crc = 0xFFFFFFFF
   for (let i = 0; i < bytes.length; i++) {
-    crc ^= bytes[i]
+    crc ^= bytes[i]!
     for (let j = 0; j < 8; j++) {
       crc = (crc & 1) ? ((crc >>> 1) ^ 0xEDB88320) : (crc >>> 1)
     }

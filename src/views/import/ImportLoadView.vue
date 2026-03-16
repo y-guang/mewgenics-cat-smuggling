@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { storeToRefs } from 'pinia'
 import vueFilePond from 'vue-filepond'
 import 'filepond/dist/filepond.min.css'
@@ -11,6 +12,7 @@ interface FilePondLikeItem {
 }
 
 const FilePond = vueFilePond()
+const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const store = useImportFlowStore()
@@ -57,16 +59,16 @@ onMounted(async () => {
 <template>
   <section class="bg-neutral-800 border border-neutral-700 rounded-lg p-5 space-y-5">
     <header class="space-y-1">
-      <h2 class="text-base font-medium text-neutral-100">Load shared cat</h2>
-      <p class="text-sm text-neutral-400">Open an import URL with params, or provide the exported share image.</p>
+      <h2 class="text-base font-medium text-neutral-100">{{ t('import.load.title') }}</h2>
+      <p class="text-sm text-neutral-400">{{ t('import.load.desc') }}</p>
     </header>
 
     <div v-if="hasRoutePayload && isDecoding" class="rounded-lg border border-neutral-700 bg-neutral-700/20 px-4 py-3 text-sm text-neutral-300">
-      Reading cat from URL...
+      {{ t('import.load.readingFromUrl') }}
     </div>
 
     <div class="space-y-2">
-      <span class="text-sm text-neutral-300">Share image</span>
+      <span class="text-sm text-neutral-300">{{ t('import.load.shareImageLabel') }}</span>
       <FilePond
         name="carrierImage"
         :allow-multiple="false"
@@ -74,7 +76,7 @@ onMounted(async () => {
         accepted-file-types="image/jpeg, image/png, image/webp"
         credits="false"
         class="export-dropzone"
-        label-idle="<span class='filepond--label-action'>Drop share image here</span><br>or click to browse"
+        :label-idle="`<span class='filepond--label-action'>${t('import.load.dropShareImage')}</span><br>${t('common.orBrowse')}`"
         @updatefiles="onCarrierImageChange"
       />
     </div>

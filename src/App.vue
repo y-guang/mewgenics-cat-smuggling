@@ -1,9 +1,12 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { Toaster } from 'vue-sonner'
+import { setLocale, type SupportedLocale } from './i18n'
 
 const route = useRoute()
+const { t, locale } = useI18n()
 
 interface Crumb {
   label: string
@@ -12,60 +15,83 @@ interface Crumb {
 
 const crumbs = computed<Crumb[]>(() => {
   if (route.path === '/') {
-    return [{ label: 'Home' }]
+    return [{ label: t('nav.home') }]
   }
 
   if (route.path === '/import') {
-    return [{ label: 'Home', to: '/' }, { label: 'Import' }]
+    return [{ label: t('nav.home'), to: '/' }, { label: t('nav.import') }]
   }
 
   if (route.path === '/import/apply') {
     return [
-      { label: 'Home', to: '/' },
-      { label: 'Import', to: '/import' },
-      { label: 'Choose Target Save' }
+      { label: t('nav.home'), to: '/' },
+      { label: t('nav.import'), to: '/import' },
+      { label: t('nav.chooseTargetSave') }
     ]
   }
 
   if (route.path === '/import/edit') {
     return [
-      { label: 'Home', to: '/' },
-      { label: 'Import', to: '/import' },
-      { label: 'Choose Target Save', to: '/import/apply' },
-      { label: 'Edit & Export' }
+      { label: t('nav.home'), to: '/' },
+      { label: t('nav.import'), to: '/import' },
+      { label: t('nav.chooseTargetSave'), to: '/import/apply' },
+      { label: t('nav.editExport') }
     ]
   }
 
   if (route.path === '/export/upload') {
-    return [{ label: 'Home', to: '/' }, { label: 'Export' }, { label: 'Upload Save' }]
+    return [{ label: t('nav.home'), to: '/' }, { label: t('nav.export') }, { label: t('nav.uploadSave') }]
   }
 
   if (route.path === '/export/select') {
     return [
-      { label: 'Home', to: '/' },
-      { label: 'Export', to: '/export/upload' },
-      { label: 'Select Cat' }
+      { label: t('nav.home'), to: '/' },
+      { label: t('nav.export'), to: '/export/upload' },
+      { label: t('nav.selectCat') }
     ]
   }
 
   if (route.path === '/export/details') {
     return [
-      { label: 'Home', to: '/' },
-      { label: 'Export', to: '/export/upload' },
-      { label: 'Select Cat', to: '/export/select' },
-      { label: 'Export Setup' }
+      { label: t('nav.home'), to: '/' },
+      { label: t('nav.export'), to: '/export/upload' },
+      { label: t('nav.selectCat'), to: '/export/select' },
+      { label: t('nav.exportSetup') }
     ]
   }
 
-  return [{ label: 'Home', to: '/' }, { label: route.name ? String(route.name) : 'Page' }]
+  return [{ label: t('nav.home'), to: '/' }, { label: route.name ? String(route.name) : 'Page' }]
 })
+
+function switchLang(lang: SupportedLocale): void {
+  setLocale(lang)
+}
 </script>
 
 <template>
   <div class="min-h-screen bg-neutral-900 text-neutral-100 p-6 md:p-10">
     <div class="max-w-4xl mx-auto space-y-8">
       <header class="space-y-2">
-        <h1 class="text-2xl md:text-3xl font-semibold tracking-tight">Mewgenics Cat Smuggler</h1>
+        <div class="flex items-center justify-between gap-4">
+          <h1 class="text-2xl md:text-3xl font-semibold tracking-tight">{{ t('app.title') }}</h1>
+          <div class="flex items-center gap-1 text-xs">
+            <button
+              :class="locale === 'en' ? 'text-neutral-100' : 'text-neutral-500 hover:text-neutral-300'"
+              class="px-2 py-1 transition-colors"
+              @click="switchLang('en')"
+            >
+              {{ t('lang.en') }}
+            </button>
+            <span class="text-neutral-700">|</span>
+            <button
+              :class="locale === 'zh' ? 'text-neutral-100' : 'text-neutral-500 hover:text-neutral-300'"
+              class="px-2 py-1 transition-colors"
+              @click="switchLang('zh')"
+            >
+              {{ t('lang.zh') }}
+            </button>
+          </div>
+        </div>
         <nav class="text-xs text-neutral-500">
           <ol class="flex items-center gap-2 flex-wrap">
             <li v-for="(crumb, index) in crumbs" :key="`${crumb.label}-${index}`" class="flex items-center gap-2">

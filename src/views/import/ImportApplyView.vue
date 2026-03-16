@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { storeToRefs } from 'pinia'
 import vueFilePond from 'vue-filepond'
 import 'filepond/dist/filepond.min.css'
@@ -15,6 +16,7 @@ interface FilePondLikeItem {
 const windowsSavePathHint = '%APPDATA%\\Glaiel Games\\Mewgenics\\<Steam ID>\\saves\\'
 
 const FilePond = vueFilePond()
+const { t } = useI18n()
 const router = useRouter()
 const store = useImportFlowStore()
 const { decodedCat } = storeToRefs(store)
@@ -84,14 +86,14 @@ async function onSaveFileChange(items: FilePondLikeItem[]): Promise<void> {
 <template>
   <section v-if="decodedCat" class="bg-neutral-800 border border-neutral-700 rounded-lg p-5 space-y-5">
     <header class="space-y-1">
-      <h2 class="text-base font-medium text-neutral-100">Choose target save</h2>
-      <p class="text-sm text-neutral-400">Select the destination save file. You will get a new cat in your save file! Don't forget to back up your original save file.</p>
+      <h2 class="text-base font-medium text-neutral-100">{{ t('import.apply.title') }}</h2>
+      <p class="text-sm text-neutral-400">{{ t('import.apply.desc') }}</p>
     </header>
 
     <CatDetailCard v-if="importCatInfo" :cat-info="importCatInfo" />
 
     <div class="space-y-2">
-      <span class="text-sm text-neutral-300">Target save (.sav)</span>
+      <span class="text-sm text-neutral-300">{{ t('import.apply.targetSaveLabel') }}</span>
       <FilePond
         name="targetSave"
         :allow-multiple="false"
@@ -99,24 +101,22 @@ async function onSaveFileChange(items: FilePondLikeItem[]): Promise<void> {
         accepted-file-types=".sav"
         credits="false"
         class="export-dropzone"
-        label-idle="<span class='filepond--label-action'>Drop target save here</span><br>or click to browse"
+        :label-idle="`<span class='filepond--label-action'>${t('import.apply.dropTargetSave')}</span><br>${t('common.orBrowse')}`"
         @updatefiles="onSaveFileChange"
       />
       <div class="rounded-md border border-neutral-700 bg-neutral-900/60 px-3 py-2 space-y-1">
-        <p class="text-xs text-neutral-400">
-          Windows save path: open this folder, then pick your file from the <span class="text-neutral-200">Steam ID</span> folder.
-        </p>
+        <p class="text-xs text-neutral-400" v-html="t('savePathHint.label', { steamId: `<span class=\'text-neutral-200\'>${t('savePathHint.steamId')}</span>` })" />
         <input
           readonly
           :value="windowsSavePathHint"
           class="w-full rounded border border-neutral-700 bg-neutral-950 px-2 py-1 text-xs text-neutral-200"
-          aria-label="Windows save path"
+          :aria-label="t('savePathHint.ariaLabel')"
         >
       </div>
     </div>
 
     <div v-if="isLoading" class="rounded-lg border border-neutral-700 bg-neutral-700/20 px-4 py-3 text-sm text-neutral-300">
-      Validating save file...
+      {{ t('import.apply.validating') }}
     </div>
 
     <p v-if="selectError" class="text-sm text-red-400 bg-red-950 border border-red-800 rounded p-2">

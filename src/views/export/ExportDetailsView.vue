@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { storeToRefs } from 'pinia'
 import vueFilePond from 'vue-filepond'
 import 'filepond/dist/filepond.min.css'
@@ -23,6 +24,7 @@ interface FilePondLikeItem {
 }
 
 const router = useRouter()
+const { t } = useI18n()
 const store = useExportFlowStore()
 const { sourceSaveFile, selectedCat, portraitFile } = storeToRefs(store)
 const FilePond = vueFilePond()
@@ -192,9 +194,9 @@ async function copyText(value: string | null): Promise<void> {
   if (!value) return
   try {
     await navigator.clipboard.writeText(value)
-    toast.success('Copied to clipboard')
+    toast.success(t('common.copied'))
   } catch {
-    toast.error('Copy failed')
+    toast.error(t('common.copyFailed'))
   }
 }
 
@@ -211,9 +213,9 @@ onBeforeUnmount(() => {
   <section v-if="selectedCat" class="bg-neutral-800 border border-neutral-700 rounded-lg p-5 space-y-5">
     <div class="flex items-start justify-between gap-4 flex-wrap">
       <div class="space-y-1">
-        <h2 class="text-base font-medium text-neutral-100">Export setup</h2>
+        <h2 class="text-base font-medium text-neutral-100">{{ t('export.details.title') }}</h2>
         <p class="text-sm text-neutral-400">
-          Prepare export metadata for <span class="text-neutral-200">{{ selectedCat.name ?? '(unnamed)' }}</span>.
+          {{ t('export.details.desc', { name: selectedCat.name ?? t('cat.unnamed') }) }}
         </p>
       </div>
     </div>
@@ -221,9 +223,9 @@ onBeforeUnmount(() => {
     <CatDetailCard :cat-info="selectedCat" />
 
     <div class="space-y-2">
-      <h3 class="text-sm font-medium text-neutral-200">Share image cover</h3>
-      <p class="text-sm text-neutral-400">Optional. Upload an image to use as the cover of the share image.</p>
-      <p v-if="portraitName" class="text-xs text-neutral-500">Selected image: {{ portraitName }}</p>
+      <h3 class="text-sm font-medium text-neutral-200">{{ t('export.details.coverTitle') }}</h3>
+      <p class="text-sm text-neutral-400">{{ t('export.details.coverDesc') }}</p>
+      <p v-if="portraitName" class="text-xs text-neutral-500">{{ t('export.details.coverSelected', { name: portraitName }) }}</p>
     </div>
 
     <FilePond
@@ -232,22 +234,22 @@ onBeforeUnmount(() => {
       :files="portraitFiles"
       credits="false"
       class="export-dropzone"
-      label-idle="<span class='filepond--label-action'>Drop cover image here</span><br>or click to browse"
+      :label-idle="`<span class='filepond--label-action'>${t('export.details.dropCover')}</span><br>${t('common.orBrowse')}`"
       @updatefiles="handlePortraitUpdate"
     />
 
     <div class="space-y-3 rounded-lg border border-neutral-700 bg-neutral-700/20 px-4 py-4">
       <div class="flex items-center justify-between gap-3 flex-wrap">
         <div>
-          <h3 class="text-sm font-medium text-neutral-200">Share image</h3>
+          <h3 class="text-sm font-medium text-neutral-200">{{ t('export.details.shareTitle') }}</h3>
           <p class="mt-2 text-sm text-neutral-400">
-            <span class="font-medium text-neutral-200">Share this picture with your friend to transfer the cat. </span> 
+            <span class="font-medium text-neutral-200">{{ t('export.details.shareHint') }}</span>
           </p>
         </div>
       </div>
 
       <p v-if="isGeneratingLongUrl || isCreatingShortUrl || isGeneratingShare" class="text-sm text-neutral-400">
-        Preparing share image...
+        {{ t('export.details.preparing') }}
       </p>
 
       <p v-if="shareError" class="text-sm text-red-400 bg-red-950 border border-red-800 rounded p-2">
@@ -265,15 +267,15 @@ onBeforeUnmount(() => {
           :download="shareImageFileName"
           class="inline-flex rounded border border-neutral-600 bg-neutral-700 text-neutral-100 px-3 py-1.5 text-sm hover:bg-neutral-600 transition-colors"
         >
-          Download share image
+          {{ t('export.details.download') }}
         </a>
       </div>
     </div>
 
     <div class="space-y-3 rounded-lg border border-neutral-700 bg-neutral-700/20 px-4 py-4">
       <div class="space-y-1">
-        <h3 class="text-sm font-medium text-neutral-200">Short URL</h3>
-        <p class="text-sm text-neutral-400">Good for share, but avoid using this short URL to archive your cat. The validity of this link depends on how long the server stays alive — it may not outlive your cat.</p>
+        <h3 class="text-sm font-medium text-neutral-200">{{ t('export.details.shortUrlTitle') }}</h3>
+        <p class="text-sm text-neutral-400">{{ t('export.details.shortUrlDesc') }}</p>
       </div>
 
       <p v-if="shortUrlError" class="text-sm text-red-400 bg-red-950 border border-red-800 rounded p-2">
@@ -284,8 +286,8 @@ onBeforeUnmount(() => {
         <p class="text-xs text-neutral-300 break-all flex-1">{{ shortShareUrl }}</p>
         <button
           class="shrink-0 rounded border border-neutral-600 bg-neutral-700 text-neutral-100 p-1.5 hover:bg-neutral-600 transition-colors"
-          title="Copy short URL"
-          aria-label="Copy short URL"
+          :title="t('export.details.copyShortUrl')"
+          :aria-label="t('export.details.copyShortUrl')"
           @click="copyText(shortShareUrl)"
         >
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="h-4 w-4">
@@ -298,8 +300,8 @@ onBeforeUnmount(() => {
     </div>
 
     <div class="rounded-lg border border-neutral-700 bg-neutral-700/20 px-4 py-4 space-y-3">
-      <h3 class="text-sm font-medium text-neutral-200">Long URL</h3>
-      <p class="text-sm text-neutral-400">Archive your cat with it!</p>
+      <h3 class="text-sm font-medium text-neutral-200">{{ t('export.details.longUrlTitle') }}</h3>
+      <p class="text-sm text-neutral-400">{{ t('export.details.longUrlDesc') }}</p>
 
       <p v-if="longUrlError" class="text-sm text-red-400 bg-red-950 border border-red-800 rounded p-2">
         {{ longUrlError }}
@@ -315,8 +317,8 @@ onBeforeUnmount(() => {
 
         <button
           class="shrink-0 rounded border border-neutral-600 bg-neutral-700 text-neutral-100 p-1.5 hover:bg-neutral-600 transition-colors"
-          :title="isLongUrlExpanded ? 'Collapse URL' : 'Expand URL'"
-          :aria-label="isLongUrlExpanded ? 'Collapse URL' : 'Expand URL'"
+          :title="isLongUrlExpanded ? t('export.details.collapseUrl') : t('export.details.expandUrl')"
+          :aria-label="isLongUrlExpanded ? t('export.details.collapseUrl') : t('export.details.expandUrl')"
           @click="isLongUrlExpanded = !isLongUrlExpanded"
         >
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="h-4 w-4">
@@ -327,8 +329,8 @@ onBeforeUnmount(() => {
 
         <button
           class="shrink-0 rounded border border-neutral-600 bg-neutral-700 text-neutral-100 p-1.5 hover:bg-neutral-600 transition-colors"
-          title="Copy long URL"
-          aria-label="Copy long URL"
+          :title="t('export.details.copyLongUrl')"
+          :aria-label="t('export.details.copyLongUrl')"
           @click="copyText(longShareUrl)"
         >
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="h-4 w-4">
