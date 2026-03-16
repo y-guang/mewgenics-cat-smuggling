@@ -29,7 +29,7 @@ const isImporting = ref(false)
 const importedResult = ref<{ importedKey: number, importedId64: string } | null>(null)
 const parsedCatInfo = ref<ImportCatBlobInfo | null>(null)
 const editInfo = ref<ImportCatEditInfo>({
-  ageDays: 730,
+  ageDays: 2,
   flags: {
     retired: false,
     dead: false,
@@ -88,7 +88,7 @@ async function loadCatDetails(): Promise<void> {
     })
     parsedCatInfo.value = info
     editInfo.value = {
-      ageDays: info.ageDays ?? 730,
+      ageDays: info.ageDays ?? 2,
       flags: info.flags
         ? { ...info.flags }
         : { retired: false, dead: false, donated: false }
