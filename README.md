@@ -1,4 +1,4 @@
-# Mewgenics Cat Smuggler
+# Mewgenics Cat Smuggler / Mewgenics 喵喵发来！
 
 Move a cat from one Mewgenics save to another without asking your friends to touch raw save data.
 
