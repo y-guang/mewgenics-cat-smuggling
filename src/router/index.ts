@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import HomeView from '../views/HomeView.vue'
 import ImportLoadView from '../views/import/ImportLoadView.vue'
 import ImportApplyView from '../views/import/ImportApplyView.vue'
+import ImportEditView from '../views/import/ImportEditView.vue'
 import ExportUploadView from '../views/export/ExportUploadView.vue'
 import ExportSelectView from '../views/export/ExportSelectView.vue'
 import ExportDetailsView from '../views/export/ExportDetailsView.vue'
@@ -23,6 +24,11 @@ export const router = createRouter({
       path: '/import/apply',
       name: 'import-apply',
       component: ImportApplyView
+    },
+    {
+      path: '/import/edit',
+      name: 'import-edit',
+      component: ImportEditView
     },
     {
       path: '/export',

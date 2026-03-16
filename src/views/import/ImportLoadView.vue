@@ -14,7 +14,7 @@ const FilePond = vueFilePond()
 const route = useRoute()
 const router = useRouter()
 const store = useImportFlowStore()
-const { decodedCat, carrierImageFile, isDecoding, decodeError } = storeToRefs(store)
+const { decodedCat, carrierImageFile, isDecoding, decodeError, targetSaveFile } = storeToRefs(store)
 
 const carrierImageFiles = ref<File[]>(carrierImageFile.value ? [carrierImageFile.value] : [])
 
@@ -51,7 +51,6 @@ onMounted(async () => {
 <template>
   <section class="bg-neutral-800 border border-neutral-700 rounded-lg p-5 space-y-5">
     <header class="space-y-1">
-      <div class="text-xs uppercase tracking-wide text-neutral-500">Step 1 of 2</div>
       <h2 class="text-base font-medium text-neutral-100">Load shared cat</h2>
       <p class="text-sm text-neutral-400">Open an import URL with params, or provide the exported share image.</p>
     </header>
