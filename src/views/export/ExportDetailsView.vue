@@ -217,8 +217,8 @@ onBeforeUnmount(() => {
     <CatDetailCard :cat-info="selectedCat" />
 
     <div class="space-y-2">
-      <h3 class="text-sm font-medium text-neutral-200">Portrait image</h3>
-      <p class="text-sm text-neutral-400">Optional. Upload an image to use it as the cover.</p>
+      <h3 class="text-sm font-medium text-neutral-200">Share image cover</h3>
+      <p class="text-sm text-neutral-400">Optional. Upload an image to use as the cover of the share image.</p>
       <p v-if="portraitName" class="text-xs text-neutral-500">Selected image: {{ portraitName }}</p>
     </div>
 
@@ -228,7 +228,7 @@ onBeforeUnmount(() => {
       :files="portraitFiles"
       credits="false"
       class="export-dropzone"
-      label-idle="<span class='filepond--label-action'>Drop portrait image here</span><br>or click to browse"
+      label-idle="<span class='filepond--label-action'>Drop cover image here</span><br>or click to browse"
       @updatefiles="handlePortraitUpdate"
     />
 
@@ -236,7 +236,9 @@ onBeforeUnmount(() => {
       <div class="flex items-center justify-between gap-3 flex-wrap">
         <div>
           <h3 class="text-sm font-medium text-neutral-200">Share image</h3>
-          <p class="text-sm text-neutral-400">If you upload an image above, it will be used as the cover.</p>
+          <p class="mt-2 text-sm text-neutral-400">
+            <span class="font-medium text-neutral-200">Share this picture with your friend to transfer the cat. </span> 
+          </p>
         </div>
       </div>
 

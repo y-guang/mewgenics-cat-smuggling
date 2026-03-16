@@ -177,7 +177,9 @@ const loadedCount = computed(() => cats.value.length)
           Choose Cat
           <span class="text-neutral-500 font-normal text-sm ml-1">({{ loadedCount }})</span>
         </h2>
-        <p class="text-xs text-neutral-500">Loaded from {{ sourceSaveFile?.name }}. Selecting one cat opens export details.</p>
+        <p class="text-xs text-neutral-500">Loaded from</p>
+        <p class="text-xs text-neutral-400 break-all">{{ sourceSaveFile?.name }}</p>
+        <p class="text-xs text-neutral-500">Selecting one cat opens export details.</p>
       </div>
       <div class="flex items-center gap-3">
         <input
