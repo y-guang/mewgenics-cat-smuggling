@@ -3,11 +3,14 @@ from __future__ import annotations
 import base64
 import secrets
 from contextlib import asynccontextmanager
+from math import ceil
 from pathlib import Path
+from typing import AsyncGenerator
 
 import aiosqlite
-from fastapi import Depends, FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 APP_DIR = Path(__file__).resolve().parent
@@ -15,6 +18,10 @@ DATA_DIR = APP_DIR / "data"
 DB_PATH = DATA_DIR / "kv.db"
 KEY_NBYTES = 6
 MAX_KEY_GENERATION_RETRIES = 8
+MAX_VALUE_BYTES = 2 * 1024
+MAX_VALUE_B64_CHARS = ceil(MAX_VALUE_BYTES / 3) * 4
+# Slight overhead for JSON wrapper: {"value_b64":"..."}
+MAX_KV_REQUEST_BYTES = MAX_VALUE_B64_CHARS + 128
 
 def generate_short_key() -> str:
     # 6 random bytes map to an 8-char URL-safe token without padding.
@@ -26,12 +33,18 @@ def normalize_and_validate_base64(raw: str) -> str:
     if not value:
         raise ValueError("value_b64 cannot be empty")
 
+    if len(value) > MAX_VALUE_B64_CHARS:
+        raise ValueError(f"value_b64 must be <= {MAX_VALUE_B64_CHARS} characters")
+
     # Accept URL-safe and standard Base64. Validate that it decodes cleanly.
     padded = value + ("=" * ((4 - len(value) % 4) % 4))
     try:
-        base64.b64decode(padded.replace("-", "+").replace("_", "/"), validate=True)
+        decoded = base64.b64decode(padded.replace("-", "+").replace("_", "/"), validate=True)
     except Exception as exc:  # pragma: no cover - exact exception type is implementation detail
         raise ValueError("value_b64 must be valid base64") from exc
+
+    if len(decoded) > MAX_VALUE_BYTES:
+        raise ValueError(f"decoded payload must be <= {MAX_VALUE_BYTES} bytes")
 
     return value
 
@@ -81,7 +94,7 @@ async def migrate_db(conn: aiosqlite.Connection) -> None:
     await conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_kv_store_key ON kv_store(key)")
 
 
-async def get_db() -> aiosqlite.Connection:
+async def get_db() -> AsyncGenerator[aiosqlite.Connection, None]:
     conn = await aiosqlite.connect(DB_PATH)
     conn.row_factory = aiosqlite.Row
     try:
@@ -117,6 +130,26 @@ async def lifespan(_: FastAPI):
 
 
 app = FastAPI(title="KV Short URL API", version="1.0.0", lifespan=lifespan)
+
+
+@app.middleware("http")
+async def limit_kv_request_size(request: Request, call_next):
+    if request.method == "POST" and request.url.path == "/kv":
+        content_length = request.headers.get("content-length")
+        if content_length:
+            try:
+                if int(content_length) > MAX_KV_REQUEST_BYTES:
+                    return JSONResponse(
+                        status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                        content={"detail": f"request body must be <= {MAX_KV_REQUEST_BYTES} bytes"},
+                    )
+            except ValueError:
+                return JSONResponse(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    content={"detail": "invalid content-length header"},
+                )
+
+    return await call_next(request)
 
 app.add_middleware(
     CORSMiddleware,
