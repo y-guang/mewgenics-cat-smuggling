@@ -34,7 +34,7 @@ if (!selectedCat.value) {
 }
 
 const portraitFiles = ref<File[]>(portraitFile.value ? [portraitFile.value] : [])
-const importUrlBase = ref(`${window.location.origin}/import`)
+const importUrlBase = ref(new URL('#/import', window.location.href).toString())
 const longShareUrl = ref<string | null>(null)
 const shortShareUrl = ref<string | null>(null)
 const shortShareKey = ref<string | null>(null)

@@ -120,9 +120,11 @@ app = FastAPI(title="KV Short URL API", version="1.0.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[],
+    allow_origins=[
+        "https://y-guang.github.io",
+    ],
     allow_origin_regex=(
-        r"^https://[A-Za-z0-9-]+\.github\.io$"
+        r"^https://([A-Za-z0-9-]+\.)?yangguang\.dev$"
         r"|^https?://localhost(?::\d+)?$"
         r"|^https?://127\.0\.0\.1(?::\d+)?$"
     ),

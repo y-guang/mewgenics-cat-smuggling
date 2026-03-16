@@ -1,4 +1,4 @@
-import { createRouter, createWebHistory } from 'vue-router'
+import { createRouter, createWebHashHistory } from 'vue-router'
 import HomeView from '../views/HomeView.vue'
 import ImportLoadView from '../views/import/ImportLoadView.vue'
 import ImportApplyView from '../views/import/ImportApplyView.vue'
@@ -8,7 +8,7 @@ import ExportSelectView from '../views/export/ExportSelectView.vue'
 import ExportDetailsView from '../views/export/ExportDetailsView.vue'
 
 export const router = createRouter({
-  history: createWebHistory(),
+  history: createWebHashHistory(),
   routes: [
     {
       path: '/',
