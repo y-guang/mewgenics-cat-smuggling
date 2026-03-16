@@ -25,3 +25,24 @@ uv run uvicorn main:app --host 127.0.0.1 --port 8787 --reload
 ```
 
 Open API docs at `http://127.0.0.1:8787/docs`.
+
+## Docker
+
+Build and run only the backend container:
+
+```bash
+docker build -t mewgenics-kv-api ./backend
+docker run --rm -p 8787:8787 -v ./backend/data:/app/data mewgenics-kv-api
+```
+
+Then open `http://127.0.0.1:8787/docs`.
+
+## Docker Compose (Server Deploy)
+
+From repository root:
+
+```bash
+docker compose up -d --build
+```
+
+This starts `kv-api` and persists SQLite data in `data/kv-api/` on the host.

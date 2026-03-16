@@ -1,0 +1,12 @@
+services:
+  kv-api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: mewgenics-kv-api
+    ports:
+      - "127.0.0.1:8787:8787"
+    volumes:
+      # Persistent SQLite storage on host for easy backup/export.
+      - ./data/kv-api:/app/data
+    restart: unless-stopped
