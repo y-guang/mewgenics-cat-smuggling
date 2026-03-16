@@ -7,7 +7,7 @@ import {
   type HouseCatEntry,
   type HousePlacement
 } from './houseState'
-import { decompressCatBlob } from './lz4'
+import { decompressCatBlob, recompressCatBlob } from './lz4'
 import { exportDatabase, openDatabase, queryAllRows, queryBlob, sqlHexLiteral } from './sqlite'
 
 export interface SaveCatSummary {
@@ -157,6 +157,13 @@ async function readCatIdentity(wrappedBlob: Uint8Array): Promise<CatIdentity> {
     id64: u64LE(data, 4),
     name: detectName(data)
   }
+}
+
+async function patchCatId64(wrappedBlob: Uint8Array, newId64: bigint): Promise<Uint8Array> {
+  const { data, variant } = await decompressCatBlob(wrappedBlob)
+  const patched = new Uint8Array(data)
+  new DataView(patched.buffer, patched.byteOffset).setBigUint64(4, newId64, true)
+  return recompressCatBlob(patched, variant)
 }
 
 function loadHouseEntries(db: Database): HouseCatEntry[] {
@@ -317,32 +324,38 @@ export async function importCatIntoSave(
   try {
     const rows = queryAllRows(db, 'SELECT key, data FROM cats ORDER BY key')
     const existingKeys: number[] = []
+    const existingId64s = new Set<bigint>()
 
     for (const row of rows) {
       const key = row[0]
       const data = row[1]
-      if (typeof key !== 'number') {
-        continue
-      }
-
+      if (typeof key !== 'number') continue
       existingKeys.push(key)
-
       if (data instanceof Uint8Array) {
         const identity = await readCatIdentity(data)
-        if (identity.id64.toString() === extracted.id64) {
-          throw new Error(`Target save already contains cat id64 ${extracted.id64} at key ${key}`)
-        }
+        existingId64s.add(identity.id64)
       }
     }
 
     const importedKey = nextCatKey(existingKeys)
+
+    // If the cat's id64 collides with one already in the target save, assign a new unique one.
+    let wrappedBlob = extracted.wrappedBlob
+    let finalId64 = extracted.id64
+    const incomingId64 = BigInt(extracted.id64)
+    if (existingId64s.has(incomingId64)) {
+      let newId64 = existingId64s.size > 0 ? [...existingId64s].reduce((a, b) => a > b ? a : b) + 1n : incomingId64 + 1n
+      while (existingId64s.has(newId64)) newId64++
+      wrappedBlob = await patchCatId64(wrappedBlob, newId64)
+      finalId64 = newId64.toString()
+    }
 
     const houseEntries = loadHouseEntries(db)
     const houseEntry = resolvePlacement(importedKey, extracted, options.housePlacement)
     const nextHouseEntries = houseEntries.filter((entry) => entry.key !== importedKey)
     nextHouseEntries.push(houseEntry)
 
-    db.run(`INSERT INTO cats (key, data) VALUES (${importedKey}, ${sqlHexLiteral(extracted.wrappedBlob)})`)
+    db.run(`INSERT INTO cats (key, data) VALUES (${importedKey}, ${sqlHexLiteral(wrappedBlob)})`)
 
     const houseBlob = buildHouseStateBlob(nextHouseEntries)
     const hasHouseState = queryBlob(db, 'SELECT data FROM files WHERE key=?', ['house_state']) !== null
@@ -355,7 +368,7 @@ export async function importCatIntoSave(
     return {
       saveBytes: exportDatabase(db),
       importedKey,
-      importedId64: extracted.id64,
+      importedId64: finalId64,
       houseEntry
     }
   } finally {
