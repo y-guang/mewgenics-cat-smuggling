@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import base64
+import hashlib
 import secrets
 from contextlib import asynccontextmanager
 from math import ceil
@@ -26,6 +27,10 @@ MAX_KV_REQUEST_BYTES = MAX_VALUE_B64_CHARS + 128
 def generate_short_key() -> str:
     # 6 random bytes map to an 8-char URL-safe token without padding.
     return secrets.token_urlsafe(KEY_NBYTES)
+
+
+def hash_payload(value_b64: str) -> str:
+    return hashlib.sha256(value_b64.encode("utf-8")).hexdigest()
 
 
 def normalize_and_validate_base64(raw: str) -> str:
@@ -59,39 +64,18 @@ async def init_db() -> None:
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 key TEXT NOT NULL UNIQUE,
                 value_b64 TEXT NOT NULL,
+                value_hash TEXT NOT NULL UNIQUE,
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
             )
             """
         )
-        await migrate_db(conn)
         await conn.commit()
 
 
-async def migrate_db(conn: aiosqlite.Connection) -> None:
-    pragma_cursor = await conn.execute("PRAGMA table_info(kv_store)")
-    pragma_rows = await pragma_cursor.fetchall()
-    columns = {row[1] for row in pragma_rows}
-
-    if "key" not in columns:
-        await conn.execute("ALTER TABLE kv_store ADD COLUMN key TEXT")
-
-    missing_cursor = await conn.execute(
-        "SELECT id FROM kv_store WHERE key IS NULL OR key = ''"
-    )
-    missing_key_rows = await missing_cursor.fetchall()
-    for row in missing_key_rows:
-        row_id = row[0]
-        for _ in range(MAX_KEY_GENERATION_RETRIES):
-            candidate = generate_short_key()
-            try:
-                await conn.execute("UPDATE kv_store SET key = ? WHERE id = ?", (candidate, row_id))
-                break
-            except aiosqlite.IntegrityError:
-                continue
-        else:
-            raise RuntimeError("failed to generate unique key while migrating existing rows")
-
-    await conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_kv_store_key ON kv_store(key)")
+async def find_key_by_hash(db: aiosqlite.Connection, value_hash: str) -> str | None:
+    cursor = await db.execute("SELECT key FROM kv_store WHERE value_hash = ?", (value_hash,))
+    row = await cursor.fetchone()
+    return row["key"] if row else None
 
 
 async def get_db() -> AsyncGenerator[aiosqlite.Connection, None]:
@@ -175,14 +159,26 @@ async def health() -> dict[str, str]:
 async def create_kv(
     payload: CreateKVRequest, db: aiosqlite.Connection = Depends(get_db)
 ) -> CreateKVResponse:
+    value_hash = hash_payload(payload.value_b64)
+
+    existing_key = await find_key_by_hash(db, value_hash)
+    if existing_key:
+        return CreateKVResponse(key=existing_key)
+
     for _ in range(MAX_KEY_GENERATION_RETRIES):
         key = generate_short_key()
         try:
-            await db.execute("INSERT INTO kv_store(key, value_b64) VALUES (?, ?)", (key, payload.value_b64))
+            await db.execute(
+                "INSERT INTO kv_store(key, value_b64, value_hash) VALUES (?, ?, ?)",
+                (key, payload.value_b64, value_hash),
+            )
             await db.commit()
             return CreateKVResponse(key=key)
         except aiosqlite.IntegrityError:
-            # Retry if random key collides with an existing one.
+            # Either key collided or concurrent insert wrote this payload hash first.
+            existing_key = await find_key_by_hash(db, value_hash)
+            if existing_key:
+                return CreateKVResponse(key=existing_key)
             continue
 
     raise HTTPException(status_code=500, detail="failed to generate unique key")
