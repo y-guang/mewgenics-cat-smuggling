@@ -2,7 +2,7 @@ import { ref } from 'vue'
 import { defineStore } from 'pinia'
 import type { LocationQuery } from 'vue-router'
 import { SHORT_URL_API_BASE } from '../config/share'
-import { readShareImageWatermark } from '../utils/shareImage'
+import { readShareImageWatermark, readShareImagePayloadToken } from '../utils/shareImage'
 import {
   extractPayloadTokenFromUrl,
   parseLongShareUrl,
@@ -148,15 +148,33 @@ export const useImportFlowStore = defineStore('importFlow', () => {
       return false
     }
 
+    isDecoding.value = true
+    decodeError.value = null
+    decodedCat.value = null
+    resolvedLongUrl.value = null
+
     try {
+      // PNG path: try to read the full payload token from tEXt metadata first.
+      const payloadToken = await readShareImagePayloadToken(file)
+      if (payloadToken) {
+        const parsed = await parsePayloadToken(payloadToken)
+        if (!parsed) throw new Error('PNG metadata found but payload could not be decoded.')
+        decodedCat.value = normalizePayload(parsed)
+        return true
+      }
+
+      // Fallback: extract short key from blind watermark and resolve via network.
       const watermark = await readShareImageWatermark(file)
       if (!watermark) {
-        throw new Error('No short key watermark found in this image.')
+        throw new Error('No cat data found in this image.')
       }
-      return await decodeAndSetFromKey(watermark)
+      decodedCat.value = await decodeFromKey(watermark)
+      return true
     } catch (error) {
       decodeError.value = error instanceof Error ? error.message : String(error)
       return false
+    } finally {
+      isDecoding.value = false
     }
   }
 

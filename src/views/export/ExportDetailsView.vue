@@ -14,6 +14,7 @@ import { writeShareImage } from '../../utils/shareImage'
 import {
   buildLongShareUrl,
   createShortShareUrl,
+  extractPayloadTokenFromUrl,
   type CatSharePayload,
 } from '../../utils/shareTransfer'
 
@@ -44,7 +45,7 @@ const shareError = ref<string | null>(null)
 const shortUrlError = ref<string | null>(null)
 const longUrlError = ref<string | null>(null)
 const shareImageUrl = ref<string | null>(null)
-const shareImageFileName = ref('cat-share.jpg')
+const shareImageFileName = ref('cat-share.png')
 const extractedPayload = ref<CatSharePayload | null>(null)
 const refreshRunId = ref(0)
 const isLongUrlExpanded = ref(false)
@@ -163,10 +164,13 @@ async function generateShareImage(watermarkText: string): Promise<void> {
 
   try {
     const effectivePortraitFile = portraitFile.value ?? await getDefaultCoverFile()
+    const longPayloadToken = longShareUrl.value
+      ? (extractPayloadTokenFromUrl(longShareUrl.value) ?? undefined)
+      : undefined
     const shareBlob = await writeShareImage({
       watermarkText,
+      longPayloadToken,
       portraitFile: effectivePortraitFile,
-      jpegQuality: 0.42
     })
 
     cleanupShareUrl()
@@ -175,7 +179,7 @@ async function generateShareImage(watermarkText: string): Promise<void> {
     const safeName = (selectedCat.value.name ?? `cat-${selectedCat.value.key}`)
       .replace(/[^A-Za-z0-9_-]+/g, '-')
       .replace(/^-+|-+$/g, '')
-    shareImageFileName.value = `${safeName || 'cat'}-share.jpg`
+    shareImageFileName.value = `${safeName || 'cat'}-share.png`
   } catch (error) {
     cleanupShareUrl()
     shareError.value = error instanceof Error ? error.message : String(error)
