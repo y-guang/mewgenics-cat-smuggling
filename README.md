@@ -2,6 +2,11 @@
 
 Move a cat from one Mewgenics save to another without asking your friends to touch raw save data.
 
+[!IMPORTANT]
+
+Due to server hosting costs, the public share service is currently archived/shut down.
+The frontend and local workflows still work normally, and you can self-host the backend if needed.
+
 ## TL;DR
 
 1. Open the [website](https://y-guang.github.io/mewgenics-cat-smuggling/).
